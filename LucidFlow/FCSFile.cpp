@@ -18,7 +18,7 @@ void FCSFile::loadASCII(const string &filename)
     sampleCount = (int)lines.size() - 1;
 
     cout << "Loading " << filename << " dim=" << dim << " samples=" << sampleCount << endl;
-    for (const string &s : header)
+    for (const string &s : fieldNames)
         cout << "  " << s << endl;
 
     data.allocate(sampleCount, dim);

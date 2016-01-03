@@ -6,3 +6,4 @@ using namespace ml;
 using namespace std;
 
 #include "FCSFile.h"
+#include "FCSProcessor.h"
