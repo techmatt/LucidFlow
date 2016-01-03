@@ -1,0 +1,15 @@
+/LucidFlow/Debug/*.log
+/LucidFlow/Debug/LucidFlow.tlog/*.tlog
+/LucidFlow/Debug/LucidFlow.tlog/*.lastbuildstate
+/LucidFlow/Debug/LucidFlow.tlog/*
+/LucidFlow/Debug/*.idb
+/LucidFlow/Debug/*.pdb
+/LucidFlow/*.opensdf
+/LucidFlow/*.sdf
+/LucidFlow/*.suo
+/LucidFlow/x64/Release/*.exe
+/LucidFlow/x64/Release/*.log
+/LucidFlow/x64/Release/*.pdb
+/LucidFlow/x64/Release/LucidFlow.tlog/*.tlog
+/LucidFlow/x64/Release/LucidFlow.tlog/*.lastbuildstate
+/LucidFlow/x64/Release/*.obj
