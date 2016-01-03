@@ -9,9 +9,18 @@
     <ClInclude Include="main.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="FCSFile.h">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="FCSFile.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="mLibSource.cpp">
       <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
