@@ -1,11 +1,19 @@
 
 #include "main.h"
 
-void FCSFile::loadASCII(const string &filename)
+void FCSFile::loadASCII(const string &filename, int maxDim)
 {
     auto lines = util::getFileLines(filename, 3);
     
     fieldNames = util::split(lines[0], '\t');
+    const int expectedDim = (int)fieldNames.size();
+
+    if (maxDim != -1 && fieldNames.size() > maxDim)
+    {
+        cout << "Truncating to " << maxDim << " dimensions" << endl;
+        fieldNames.resize(maxDim);
+    }
+
     dim = (int)fieldNames.size();
     sampleCount = (int)lines.size() - 1;
 
@@ -18,7 +26,7 @@ void FCSFile::loadASCII(const string &filename)
     {
         const string &line = lines[i];
         auto parts = util::split(line, '\t');
-        if (parts.size() != dim)
+        if (parts.size() != expectedDim)
         {
             cout << "Invalid line: " << line << endl;
             return;

@@ -3,7 +3,7 @@ typedef KMeansClustering<MathVectorf, MathVectorKMeansMetric<float>> FCSClusteri
 
 struct FCSFile
 {
-    void loadASCII(const string &filename);
+    void loadASCII(const string &filename, int maxDim);
 
     void saveBinary(const string &filename);
     void loadBinary(const string &filename);

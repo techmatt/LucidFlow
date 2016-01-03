@@ -79,8 +79,11 @@ void FCSProcessor::makeTransforms(const FCSFile &file)
 
 void FCSProcessor::makeClustering(FCSFile &file, int clusterCount)
 {
+    const int maxIterations = 1000;
+    const double maxDelta = 1e-7;
+
     transform(file);
-    clustering.cluster(file.transformedSamples, clusterCount);
+    clustering.cluster(file.transformedSamples, clusterCount, maxIterations, true, maxDelta);
 
     clusterColors.resize(clusterCount);
 

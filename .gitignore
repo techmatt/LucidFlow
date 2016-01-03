@@ -15,3 +15,12 @@
 /LucidFlow/x64/Release/*.obj
 /LucidFlow/viz
 /LucidFlow/dump.dat
+/LucidFlow/LucidFlow.vcxproj.user
+/LucidFlow/x64/Debug/*.obj
+/LucidFlow/x64/Debug/*.exe
+/LucidFlow/x64/Debug/*.ilk
+/LucidFlow/x64/Debug/*.log
+/LucidFlow/x64/Debug/*.pdb
+/LucidFlow/x64/Debug/LucidFlow.tlog/*.tlog
+/LucidFlow/x64/Debug/LucidFlow.tlog/*.lastbuildstate
+/LucidFlow/x64/Debug/*.idb
