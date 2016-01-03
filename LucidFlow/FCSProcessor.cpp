@@ -11,21 +11,22 @@ FieldTransform FieldTransform::createLinear(const string &_name, const vector<fl
     return result;
 }
 
-float FieldTransform::transform(float inputValue)
+float FieldTransform::transform(float inputValue) const
 {
     if (type == Linear)
     {
         return math::linearMap(minValue, maxValue, 0.0f, 1.0f, inputValue);
     }
+    return 0.0f;
 }
 
 void FCSProcessor::transform(FCSFile &file)
 {
     MLIB_ASSERT_STR(transforms.size() == file.dim, "Mismatched dimensionality");
-    file.transformedData.resize(file.sampleCount);
+    file.transformedSamples.resize(file.sampleCount);
     for (int i = 0; i < file.sampleCount; i++)
     {
-        MathVectorf &v = file.transformedData[i];
+        MathVectorf &v = file.transformedSamples[i];
         v.resize(file.dim);
         for (int j = 0; j < file.dim; j++)
         {
@@ -79,7 +80,24 @@ void FCSProcessor::makeTransforms(const FCSFile &file)
 void FCSProcessor::makeClustering(FCSFile &file, int clusterCount)
 {
     transform(file);
-    KMeansClustering<MathVectorf, MathVectorKMeansMetric<float>> clustering;
-    clustering.cluster(file.transformedData, clusterCount);
-    
+    clustering.cluster(file.transformedSamples, clusterCount);
+
+    clusterColors.resize(clusterCount);
+
+    for (int i = 0; i < clusterCount; i++)
+    {
+        vec3f randomColor;
+        do {
+            auto r = []() { return (float)util::randomUniform(); };
+            randomColor = vec3f(r(), r(), r());
+        } while (randomColor.length() <= 0.8f);
+        randomColor *= 255.0f;
+        clusterColors[i] = vec4uc(util::boundToByte(randomColor.r), util::boundToByte(randomColor.g), util::boundToByte(randomColor.b), 255);
+    }
+}
+
+vec4uc FCSProcessor::getClusterColor(const MathVectorf &sample) const
+{
+    UINT clusterIndex = clustering.quantizeToNearestClusterIndex(sample);
+    return clusterColors[clusterIndex];
 }

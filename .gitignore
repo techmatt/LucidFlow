@@ -13,3 +13,5 @@
 /LucidFlow/x64/Release/LucidFlow.tlog/*.tlog
 /LucidFlow/x64/Release/LucidFlow.tlog/*.lastbuildstate
 /LucidFlow/x64/Release/*.obj
+/LucidFlow/viz
+/LucidFlow/dump.dat

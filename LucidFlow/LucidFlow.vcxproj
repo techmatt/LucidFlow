@@ -82,11 +82,13 @@
   <ItemGroup>
     <ClInclude Include="FCSFile.h" />
     <ClInclude Include="FCSProcessor.h" />
+    <ClInclude Include="FCSVisualizer.h" />
     <ClInclude Include="main.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FCSFile.cpp" />
     <ClCompile Include="FCSProcessor.cpp" />
+    <ClCompile Include="FCSVisualizer.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mLibSource.cpp" />
   </ItemGroup>

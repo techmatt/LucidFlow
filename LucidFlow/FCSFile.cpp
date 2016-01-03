@@ -1,14 +1,6 @@
 
 #include "main.h"
 
-float FieldTransform::transform(float inputValue)
-{
-    if (type == Linear)
-    {
-        return math::linearMap(minValue, maxValue, 0.0f, 1.0f, inputValue);
-    }
-}
-
 void FCSFile::loadASCII(const string &filename)
 {
     auto lines = util::getFileLines(filename, 3);

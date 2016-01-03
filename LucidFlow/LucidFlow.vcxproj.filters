@@ -4,30 +4,39 @@
     <Filter Include="Core">
       <UniqueIdentifier>{7d843d09-119e-4cfb-96aa-55d3d4b4ee82}</UniqueIdentifier>
     </Filter>
+    <Filter Include="FCS">
+      <UniqueIdentifier>{5dac0761-dca7-4702-8829-c134b6bce3f6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="FCSVisualizer.h">
+      <Filter>FCS</Filter>
+    </ClInclude>
     <ClInclude Include="FCSFile.h">
-      <Filter>Core</Filter>
+      <Filter>FCS</Filter>
     </ClInclude>
     <ClInclude Include="FCSProcessor.h">
-      <Filter>Core</Filter>
+      <Filter>FCS</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="FCSFile.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="mLibSource.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="FCSFile.cpp">
+      <Filter>FCS</Filter>
+    </ClCompile>
     <ClCompile Include="FCSProcessor.cpp">
-      <Filter>Core</Filter>
+      <Filter>FCS</Filter>
+    </ClCompile>
+    <ClCompile Include="FCSVisualizer.cpp">
+      <Filter>FCS</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

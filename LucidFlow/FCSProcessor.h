@@ -10,7 +10,7 @@ struct FieldTransform
 
     static FieldTransform createLinear(const string &_name, const vector<float> &sortedValues);
 
-    float transform(float inputValue);
+    float transform(float inputValue) const;
 
     Type type;
 
@@ -27,5 +27,9 @@ struct FCSProcessor
     void makeTransforms(const FCSFile &file);
     void makeClustering(FCSFile &file, int clusterCount);
 
+    vec4uc getClusterColor(const MathVectorf &v) const;
+
     vector<FieldTransform> transforms;
+    FCSClustering clustering;
+    vector<vec4uc> clusterColors;
 };

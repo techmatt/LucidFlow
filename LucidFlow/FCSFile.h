@@ -1,4 +1,6 @@
 
+typedef KMeansClustering<MathVectorf, MathVectorKMeansMetric<float>> FCSClustering;
+
 struct FCSFile
 {
     void loadASCII(const string &filename);
@@ -11,5 +13,5 @@ struct FCSFile
     vector<string> fieldNames;
     Grid2f data;
 
-    vector< MathVectorf > transformedData;
+    vector< MathVectorf > transformedSamples;
 };
