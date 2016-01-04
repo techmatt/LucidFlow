@@ -1,6 +1,38 @@
 
 #include "main.h"
 
+int FCSClustering::getClusterIndex(const MathVectorf &sample) const
+{
+    return c.quantizeToNearestClusterIndex(sample);
+}
+
+vec4uc FCSClustering::getClusterColor(const MathVectorf &sample) const
+{
+    UINT clusterIndex = c.quantizeToNearestClusterIndex(sample);
+    return colors[clusterIndex];
+}
+void FCSClustering::go(const FCSFile &file, int clusterCount)
+{
+    const int maxIterations = 1000;
+    const double maxDelta = 1e-7;
+
+    MLIB_ASSERT_STR(file.transformedSamples.size() > 0, "Samples not transformed");
+    c.cluster(file.transformedSamples, clusterCount, maxIterations, true, maxDelta);
+
+    colors.resize(clusterCount);
+
+    for (int i = 0; i < clusterCount; i++)
+    {
+        vec3f randomColor;
+        do {
+            auto r = []() { return (float)util::randomUniform(); };
+            randomColor = vec3f(r(), r(), r());
+        } while (randomColor.length() <= 0.8f);
+        randomColor *= 255.0f;
+        colors[i] = vec4uc(util::boundToByte(randomColor.r), util::boundToByte(randomColor.g), util::boundToByte(randomColor.b), 255);
+    }
+}
+
 void FCSFile::loadASCII(const string &filename, int maxDim)
 {
     auto lines = util::getFileLines(filename, 3);

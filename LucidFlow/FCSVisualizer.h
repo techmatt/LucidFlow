@@ -45,6 +45,6 @@ struct QuartileRemap
 
 struct FCSVisualizer
 {
-    Bitmap visualizePoint(const FCSFile &file, const FCSProcessor &processor, int axisA, int axisB, int imageSize);
-    Bitmap visualizeDensity(const FCSFile &file, const FCSProcessor &processor, int axisA, int axisB, int imageSize, int clusterFilter, const QuartileRemap &params);
+    static Bitmap visualizePoint(const FCSFile &file, const FCSProcessor &processor, int axisA, int axisB, int imageSize);
+    static Bitmap visualizeDensity(const FCSFile &file, const FCSProcessor &processor, int axisA, int axisB, int imageSize, int clusterFilter, const QuartileRemap &params);
 };

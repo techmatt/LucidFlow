@@ -1,5 +1,15 @@
 
-typedef KMeansClustering<MathVectorf, MathVectorKMeansMetric<float>> FCSClustering;
+struct FCSFile;
+struct FCSClustering
+{
+    void go(const FCSFile &file, int clusterCount);
+
+    int getClusterIndex(const MathVectorf &sample) const;
+    vec4uc getClusterColor(const MathVectorf &sample) const;
+
+    KMeansClustering < MathVectorf, MathVectorKMeansMetric<float> > c;
+    vector<vec4uc> colors;
+};
 
 struct FCSFile
 {
@@ -13,5 +23,9 @@ struct FCSFile
     vector<string> fieldNames;
     Grid2f data;
 
+    //
+    // These are computed as needed
+    //
     vector< MathVectorf > transformedSamples;
+    FCSClustering localClustering;
 };

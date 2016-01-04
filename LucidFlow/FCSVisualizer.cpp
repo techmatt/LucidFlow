@@ -30,6 +30,9 @@ Bitmap FCSVisualizer::visualizeDensity(const FCSFile &file, const FCSProcessor &
 
     for (const MathVectorf &sample : file.transformedSamples)
     {
+        if (clusterFilter != -1 && processor.getClusterIndex(sample) != clusterFilter)
+            continue;
+
         vec2f v;
         v.x = sample[axisA];
         v.y = 1.0f - sample[axisB];

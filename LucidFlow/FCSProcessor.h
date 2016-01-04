@@ -27,9 +27,18 @@ struct FCSProcessor
     void makeTransforms(const FCSFile &file);
     void makeClustering(FCSFile &file, int clusterCount);
 
-    vec4uc getClusterColor(const MathVectorf &v) const;
-
     vector<FieldTransform> transforms;
     FCSClustering clustering;
     vector<vec4uc> clusterColors;
+};
+
+struct FCSPerturbationGenerator
+{
+    static float avgMatchDist(const FCSClustering &clusteringA, const FCSClustering &clusteringB);
+    static float avgMatchDistSymmetric(const FCSClustering &clusteringA, const FCSClustering &clusteringB);
+    static float avgInterClusterDist(const FCSClustering &clustering);
+
+    void init(const string &FCSDirectory, int maxFileCount);
+
+    vector<FCSFile*> files;
 };

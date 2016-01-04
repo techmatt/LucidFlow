@@ -77,30 +77,53 @@ void FCSProcessor::makeTransforms(const FCSFile &file)
     }
 }
 
-void FCSProcessor::makeClustering(FCSFile &file, int clusterCount)
+float FCSPerturbationGenerator::avgMatchDist(const FCSClustering &clusteringA, const FCSClustering &clusteringB)
 {
-    const int maxIterations = 1000;
-    const double maxDelta = 1e-7;
-
-    transform(file);
-    clustering.cluster(file.transformedSamples, clusterCount, maxIterations, true, maxDelta);
-
-    clusterColors.resize(clusterCount);
-
-    for (int i = 0; i < clusterCount; i++)
+    const int n = clusteringA.c.clusterCount();
+    float sum = 0.0f;
+    for (int clusterBIndex = 0; clusterBIndex < n; clusterBIndex++)
     {
-        vec3f randomColor;
-        do {
-            auto r = []() { return (float)util::randomUniform(); };
-            randomColor = vec3f(r(), r(), r());
-        } while (randomColor.length() <= 0.8f);
-        randomColor *= 255.0f;
-        clusterColors[i] = vec4uc(util::boundToByte(randomColor.r), util::boundToByte(randomColor.g), util::boundToByte(randomColor.b), 255);
+        int clusterAIndex = clusteringA.c.quantizeToNearestClusterIndex(clusteringB.c.clusterCenter(clusterBIndex));
+        sum += sqrtf(MathVectorKMeansMetric<float>::Dist(clusteringA.c.clusterCenter(clusterAIndex), clusteringB.c.clusterCenter(clusterBIndex)));
     }
+    return sum / (float)n;
 }
 
-vec4uc FCSProcessor::getClusterColor(const MathVectorf &sample) const
+float FCSPerturbationGenerator::avgMatchDistSymmetric(const FCSClustering &clusteringA, const FCSClustering &clusteringB)
 {
-    UINT clusterIndex = clustering.quantizeToNearestClusterIndex(sample);
-    return clusterColors[clusterIndex];
+    return (avgMatchDist(clusteringA, clusteringB) + avgMatchDist(clusteringB, clusteringA)) * 0.5f;
+}
+
+float FCSPerturbationGenerator::avgInterClusterDist(const FCSClustering &clustering)
+{
+    const int n = clustering.c.clusterCount();
+    auto find2ndClusterIndex = [&](int sourceClusterIndex)
+    {
+        float bestDist = std::numeric_limits<float>::max();
+        int bestClusterIndex = -1;
+        for (int clusterIndex = 0; clusterIndex < n; clusterIndex++)
+        {
+            if (clusterIndex == sourceClusterIndex)
+                continue;
+            float dist = MathVectorKMeansMetric<float>::Dist(clustering.c.clusterCenter(sourceClusterIndex), clustering.c.clusterCenter(clusterIndex));
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                bestClusterIndex = clusterIndex;
+            }
+        }
+        return bestClusterIndex;
+    };
+
+    float sum = 0.0f;
+    for (int clusterIndex = 0; clusterIndex < n; clusterIndex++)
+    {
+        sum += find2ndClusterIndex(clusterIndex);
+    }
+    return sum / (float)n;
+}
+
+void FCSPerturbationGenerator::init(const string &FCSDirectory)
+{
+
 }

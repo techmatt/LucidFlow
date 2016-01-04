@@ -10,24 +10,25 @@ void go()
 
     FCSProcessor processor;
     processor.makeTransforms(file);
-    processor.makeClustering(file, 1);
+    processor.makeClustering(file, 20);
 
     util::makeDirectory("viz");
-    for (int random = 0; random < 1; random++)
-    {
-        int axisA = 3;
-        //int axisB = rand() % file.dim;
-        int axisB = 4;
-        FCSVisualizer viz;
-        //auto image = viz.visualizePoint(file, processor, axisA, axisB, 512);
+    int axisA = 3;
+    int axisB = 4;
 
-        QuartileRemap params;
+    QuartileRemap params;
+    for (int cluster = 0; cluster < 20; cluster++)
+    {
         //params.quartiles = { 0.0f, 3.0f, 6.0f, 12.0f, 20.0f, 50.0f, 200.0f, 400.0f };
 
-        auto image = viz.visualizeDensity(file, processor, axisA, axisB, 256, -1, params);
+        auto image = FCSVisualizer::visualizeDensity(file, processor, axisA, axisB, 128, cluster, params);
         
-        LodePNG::save(image, "viz/" + to_string(axisA) + "_" + to_string(axisB) + ".png");
+        LodePNG::save(image, "viz/a" + to_string(axisA) + "_b" + to_string(axisB) + "_cluster" + to_string(cluster) + ".png");
     }
+    auto imageAllA = FCSVisualizer::visualizePoint(file, processor, axisA, axisB, 512);
+    auto imageAllB = FCSVisualizer::visualizeDensity(file, processor, axisA, axisB, 512, -1, params);
+    LodePNG::save(imageAllA, "viz/a" + to_string(axisA) + "_b" + to_string(axisB) + "_allClustersA.png");
+    LodePNG::save(imageAllB, "viz/a" + to_string(axisA) + "_b" + to_string(axisB) + "_allClustersB.png");
 }
 
 void main()
