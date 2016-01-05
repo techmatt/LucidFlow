@@ -18,6 +18,8 @@ struct FCSFile
     void saveBinary(const string &filename);
     void loadBinary(const string &filename);
 
+    void compensateSamples(const string &infoFilename);
+
     int dim;
     int sampleCount;
     vector<string> fieldNames;

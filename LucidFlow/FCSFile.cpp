@@ -11,6 +11,7 @@ vec4uc FCSClustering::getClusterColor(const MathVectorf &sample) const
     UINT clusterIndex = c.quantizeToNearestClusterIndex(sample);
     return colors[clusterIndex];
 }
+
 void FCSClustering::go(const FCSFile &file, int clusterCount)
 {
     const int maxIterations = 1000;
@@ -37,7 +38,8 @@ void FCSFile::loadASCII(const string &filename, int maxDim)
 {
     auto lines = util::getFileLines(filename, 3);
     
-    fieldNames = util::split(lines[0], '\t');
+    fieldNames = util::split(util::remove(lines[0], "\""), ',');
+    //util::pop_front(fieldNames);
     const int expectedDim = (int)fieldNames.size();
 
     if (maxDim != -1 && fieldNames.size() > maxDim)
@@ -51,13 +53,14 @@ void FCSFile::loadASCII(const string &filename, int maxDim)
 
     cout << "Loading " << filename << " dim=" << dim << " samples=" << sampleCount << endl;
     for (const string &s : fieldNames)
-        cout << "  " << s << endl;
+        cout << s << endl;
 
     data.allocate(sampleCount, dim);
     for (size_t i = 1; i < lines.size(); i++)
     {
         const string &line = lines[i];
-        auto parts = util::split(line, '\t');
+        auto parts = util::split(line, ',');
+        util::pop_front(parts);
         if (parts.size() != expectedDim)
         {
             cout << "Invalid line: " << line << endl;
@@ -84,4 +87,46 @@ void FCSFile::loadBinary(const string &filename)
     in >> dim >> sampleCount >> fieldNames;
     in.readPrimitiveGrid(data);
     in.closeStream();
+}
+
+void FCSFile::compensateSamples(const string &infoFilename)
+{
+    SpilloverMatrix spillover;
+    if (!FCSUtil::readSpilloverMatrix(infoFilename, spillover))
+    {
+        cout << "No spillover matrix found" << endl;
+        return;
+    }
+    DenseMatrixd compensationMatrix = spillover.m.inverse();
+    
+    map<string, int> fieldToSampleIndex;
+    for (int i = 0; i < fieldNames.size(); i++)
+        fieldToSampleIndex[fieldNames[i]] = i;
+
+    for (int i = 0; i < spillover.dim; i++)
+    {
+        if (fieldToSampleIndex.count(spillover.header[i]) == 0)
+        {
+            cout << "Spillover field not found: " << spillover.header[i] << endl;
+            return;
+        }
+    }
+
+    for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+    {
+        MathVectord v(spillover.dim);
+        for (int i = 0; i < spillover.dim; i++)
+        {
+            const int sampleDim = fieldToSampleIndex[spillover.header[i]];
+            v[i] = data(sampleIndex, sampleDim);
+        }
+
+        v = compensationMatrix * v;
+
+        for (int i = 0; i < spillover.dim; i++)
+        {
+            const int sampleDim = fieldToSampleIndex[spillover.header[i]];
+            data(sampleIndex, sampleDim) = v[i];
+        }
+    }
 }

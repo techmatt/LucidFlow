@@ -27,3 +27,10 @@
 /LucidFlow/x64/Release/LucidFlow.tlog/unsuccessfulbuild
 /datasets/testA/CSV
 /datasets/testA/FCS
+/datasets/HIV-FlowCAP4/CSV/*.csv
+/datasets/HIV-FlowCAP4/*.pdf
+/datasets/HIV-FlowCAP4/DAT/*.dat
+/datasets/HIV-FlowCAP4/FCS/*.fcs
+/datasets/HIV-FlowCAP4/*.csv
+/datasets/HIV-FlowCAP4/*.zip
+/datasets/HIV-FlowCAP4/info/*.txt

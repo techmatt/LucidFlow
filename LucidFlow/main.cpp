@@ -1,7 +1,7 @@
 
 #include "main.h"
 
-void go()
+void goA()
 {
     FCSFile file;
     //file.loadASCII(R"(C:\Users\mdfisher\Downloads\FCSDump.txt)", 12);
@@ -31,9 +31,17 @@ void go()
     LodePNG::save(imageAllB, "viz/a" + to_string(axisA) + "_b" + to_string(axisB) + "_allClustersB.png");
 }
 
+void goB()
+{
+    FCSDataset dataset;
+    dataset.init(R"(C:\Code\LucidFlow\datasets\HIV-FlowCAP4\)");
+    dataset.createBinaryFiles();
+}
+
 void main()
 {
-    go();
+    //goA();
+    goB();
 
     cout << "done!" << endl;
     cin.get();

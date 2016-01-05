@@ -16,7 +16,7 @@ Bitmap FCSVisualizer::visualizePoint(const FCSFile &file, const FCSProcessor &pr
         vec2i coord = math::round(v * (float)imageSize);
         if (result.isValidCoordinate(coord))
         {
-            result(coord) = processor.getClusterColor(sample);
+            result(coord) = processor.clustering.getClusterColor(sample);
         }
     }
 
@@ -30,7 +30,7 @@ Bitmap FCSVisualizer::visualizeDensity(const FCSFile &file, const FCSProcessor &
 
     for (const MathVectorf &sample : file.transformedSamples)
     {
-        if (clusterFilter != -1 && processor.getClusterIndex(sample) != clusterFilter)
+        if (clusterFilter != -1 && processor.clustering.getClusterIndex(sample) != clusterFilter)
             continue;
 
         vec2f v;

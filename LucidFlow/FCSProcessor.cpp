@@ -1,6 +1,11 @@
 
 #include "main.h"
 
+void FCSProcessor::makeClustering(FCSFile &file, int clusterCount)
+{
+
+}
+
 FieldTransform FieldTransform::createLinear(const string &_name, const vector<float> &sortedValues)
 {
     FieldTransform result;

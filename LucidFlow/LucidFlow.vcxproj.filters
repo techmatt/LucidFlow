@@ -21,6 +21,12 @@
     <ClInclude Include="FCSProcessor.h">
       <Filter>FCS</Filter>
     </ClInclude>
+    <ClInclude Include="FCSDataset.h">
+      <Filter>FCS</Filter>
+    </ClInclude>
+    <ClInclude Include="FCSUtil.h">
+      <Filter>FCS</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -36,6 +42,12 @@
       <Filter>FCS</Filter>
     </ClCompile>
     <ClCompile Include="FCSVisualizer.cpp">
+      <Filter>FCS</Filter>
+    </ClCompile>
+    <ClCompile Include="FCSDataset.cpp">
+      <Filter>FCS</Filter>
+    </ClCompile>
+    <ClCompile Include="FCSUtil.cpp">
       <Filter>FCS</Filter>
     </ClCompile>
   </ItemGroup>
