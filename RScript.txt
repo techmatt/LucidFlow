@@ -1,0 +1,23 @@
+library(flowCore)
+
+convertFCS <- function(sourceFile, destFile) {
+	data = read.FCS(sourceFile) ## reads in the FCS as a flowFrame called "data"
+	exprs = data@exprs ## subsets just the sample data to a new flowFrame (I think)
+	i_cols = 1:dim(exprs)[2]   ##creates list with 8 entries; change to num of parameters in your sample
+	col_names = colnames(exprs[,i_cols]) #extracts column names from data (aka which parameter is in which column b/c it might vary from sample to sample)
+	df = data.frame(exprs[,i_cols]) ##subsets the flowFrame "exprs" to a dataframe "df"
+	names(df) = col_names ##makes the df column names same as original flowFrame data
+	write.csv(df, destFile)
+}
+
+datasetPathFCS = "C:\\Code\\LucidFlow\\datasets\\testA\\FCS\\"
+datasetPathCSV = "C:\\Code\\LucidFlow\\datasets\\testA\\CSV\\"
+fileA = "C:\\Code\\LucidFlow\\datasets\\0001.FCS"
+fileB = "C:\\code\\LucidFlow\\datasets\\0001.csv"
+
+fileList = list.files(path = datasetPathFCS, full.names = FALSE, no.. = TRUE)
+
+for(FCSFile in fileList) {
+	CSVFile = gsub(".FCS", ".csv", FCSFile)
+	convertFCS(paste(datasetPathFCS, FCSFile, ""), datasetPathCSV + CSVFile)
+}
