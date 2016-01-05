@@ -123,7 +123,23 @@ float FCSPerturbationGenerator::avgInterClusterDist(const FCSClustering &cluster
     return sum / (float)n;
 }
 
-void FCSPerturbationGenerator::init(const string &FCSDirectory)
+void FCSPerturbationGenerator::init(const string &FCSDirectory, int maxFileCount)
 {
+    auto fileList = Directory::enumerateFilesWithPath(FCSDirectory, ".dat");
+    set<string> chosenFilenames;
+    if (fileList.size() <= maxFileCount)
+        chosenFilenames = set<string>(fileList.begin(), fileList.end());
+    else
+    {
+        while (chosenFilenames.size() < maxFileCount)
+        {
+            chosenFilenames.insert(util::randomElement(fileList));
+        }
+    }
 
+    for (string s : chosenFilenames)
+    {
+        FCSFile *newFile = new FCSFile;
+        newFile->loadBinary(s);
+    }
 }
