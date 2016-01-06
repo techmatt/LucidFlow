@@ -13,12 +13,23 @@ struct FCSClustering
 
 struct FCSFile
 {
-    void loadASCII(const string &filename, int maxDim);
+    void loadASCII(const string &filename, int maxDim, int maxSamples);
 
     void saveBinary(const string &filename);
     void loadBinary(const string &filename);
 
     void compensateSamples(const string &infoFilename);
+
+    void printDataRanges();
+
+    int getFieldIndex(const string &fieldName)
+    {
+        for (int i = 0; i < dim; i++)
+            if (fieldNames[dim] == fieldName)
+                return i;
+        cout << "Field not found: " << fieldName << endl;
+        return -1;
+    }
 
     int dim;
     int sampleCount;

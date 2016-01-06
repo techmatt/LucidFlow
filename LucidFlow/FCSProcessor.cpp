@@ -1,9 +1,12 @@
 
 #include "main.h"
 
-void FCSProcessor::makeClustering(FCSFile &file, int clusterCount)
+float FieldTransform::clampedLog(float x, float offset, float scale)
 {
-
+    x += offset;
+    if (x <= 1.0f)
+        return 0.0f;
+    return log(x) * scale;
 }
 
 FieldTransform FieldTransform::createLinear(const string &_name, const vector<float> &sortedValues)
@@ -16,18 +19,77 @@ FieldTransform FieldTransform::createLinear(const string &_name, const vector<fl
     return result;
 }
 
+FieldTransform FieldTransform::createLog(const string &_name, const vector<float> &sortedValues)
+{
+    FieldTransform result;
+    result.name = _name;
+    result.type = Log;
+    result.logScale = 1.0f;
+    result.logOffset = 500.0f;
+
+    result.minValue = clampedLog(FCSUtil::getQuartile(sortedValues, 0.02f), result.logOffset, result.logScale);
+    //result.minValue = 0.0f;
+    result.maxValue = clampedLog(FCSUtil::getQuartile(sortedValues, 0.98f), result.logOffset, result.logScale);
+
+    cout << "log range: (" << result.minValue << ", " << result.maxValue << ")" << endl;
+
+    //result.maxValue = clampedLog(getQuartile(sortedValues, 0.99f), result.logOffset, result.logScale);
+
+    return result;
+}
+
+FieldTransform FieldTransform::createLogQuartile(const string &_name, const vector<float> &sortedValues)
+{
+    FieldTransform result;
+    result.name = _name;
+    result.type = LogQuartile;
+    result.logScale = 1.0f;
+    result.logOffset = 1.0f;
+
+    float smallValue = FCSUtil::getQuartile(sortedValues, 0.01f);
+    if (smallValue < 0.0f)
+        result.logOffset = -smallValue;
+
+    vector<float> logValues;
+    for (float f : sortedValues)
+        logValues.push_back(clampedLog(f, result.logOffset, result.logScale));
+
+    result.quartile = QuartileRemap::makeFromValues(logValues, 2);
+    return result;
+}
+
 float FieldTransform::transform(float inputValue) const
 {
     if (type == Linear)
     {
         return math::linearMap(minValue, maxValue, 0.0f, 1.0f, inputValue);
     }
+    if (type == Log)
+    {
+        float value = clampedLog(inputValue, logOffset, logScale);
+        return math::linearMap(minValue, maxValue, 0.0f, 1.0f, value);
+    }
+    if (type == LogQuartile)
+    {
+        float logValue = clampedLog(inputValue, logOffset, logScale);
+        return quartile.transform(logValue);
+    }
     return 0.0f;
 }
 
-void FCSProcessor::transform(FCSFile &file)
+void FCSProcessor::makeClustering(FCSFile &file, int clusterCount)
+{
+    clustering.go(file, clusterCount);
+}
+
+void FCSProcessor::transform(FCSFile &file) const
 {
     MLIB_ASSERT_STR(transforms.size() == file.dim, "Mismatched dimensionality");
+    if (file.transformedSamples.size() != 0)
+    {
+        cout << "Skipping transform" << endl;
+        return;
+    }
     file.transformedSamples.resize(file.sampleCount);
     for (int i = 0; i < file.sampleCount; i++)
     {
@@ -38,33 +100,6 @@ void FCSProcessor::transform(FCSFile &file)
             v[j] = transforms[j].transform(file.data(i, j));
         }
     }
-}
-
-void FCSProcessor::makeResampledFile(const vector<string> &fileList, int samplesPerFile, const string &filenameOut)
-{
-    FCSFile result;
-    result.sampleCount = samplesPerFile * (int)fileList.size();
-
-    for (auto &filenameIn : fileList)
-    {
-        FCSFile file;
-        file.loadBinary(filenameIn);
-        if (result.fieldNames.size() == 0)
-        {
-            result.dim = file.dim;
-            result.fieldNames = file.fieldNames;
-            result.data.allocate(result.sampleCount, result.dim);
-        }
-        for (int i = 0; i < samplesPerFile; i++)
-        {
-            const int sample = util::randomInteger(0, file.sampleCount - 1);
-            for (int j = 0; j < result.dim; j++)
-            {
-                result.data(i, j) = file.data(sample, j);
-            }
-        }
-    }
-    result.saveBinary(filenameOut);
 }
 
 void FCSProcessor::makeTransforms(const FCSFile &file)
@@ -78,7 +113,46 @@ void FCSProcessor::makeTransforms(const FCSFile &file)
             values[j] = file.data(j, i);
         }
         sort(values.begin(), values.end());
-        transforms[i] = FieldTransform::createLinear(file.fieldNames[i], values);
+        
+        cout << file.fieldNames[i] << ": (" << values.front() << ", " << values.back() << ")" << endl;
+
+        //transforms[i] = FieldTransform::createLinear(file.fieldNames[i], values);
+        //transforms[i] = FieldTransform::createLog(file.fieldNames[i], values);
+        transforms[i] = FieldTransform::createLogQuartile(file.fieldNames[i], values);
+    }
+}
+
+bool FCSProcessor::axesValid(const string &axisA, const string &axisB) const
+{
+    if (axisA == axisB)
+        return false;
+    if (axisA == "Time" || axisB == "Time")
+        return false;
+    return true;
+}
+
+void FCSProcessor::saveFeatures(FCSFile &file, const string &outDir) const
+{
+    util::makeDirectory(outDir);
+
+    const int imageSize = 32;
+    transform(file);
+    int axisA = file.getFieldIndex("SSC-A");
+    for (int axisB = 0; axisB < file.dim; axisB++)
+    {
+        if (axesValid(file.fieldNames[axisA], file.fieldNames[axisB]))
+        {
+            const string featureFilename = outDir + to_string(axisA) + "_" + to_string(axisB) + ".dat";
+            if (!util::fileExists(featureFilename))
+            {
+                cout << "Saving " << featureFilename << endl;
+                FCSFeatures features;
+                QuartileRemap quartile;
+                features.create(file, *this, axisA, axisB, imageSize, quartile);
+                features.save(featureFilename);
+                features.saveDebugViz(outDir);
+            }
+        }
     }
 }
 

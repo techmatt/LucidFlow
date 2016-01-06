@@ -34,7 +34,7 @@ void FCSClustering::go(const FCSFile &file, int clusterCount)
     }
 }
 
-void FCSFile::loadASCII(const string &filename, int maxDim)
+void FCSFile::loadASCII(const string &filename, int maxDim, int maxSamples)
 {
     auto lines = util::getFileLines(filename, 3);
     
@@ -49,14 +49,14 @@ void FCSFile::loadASCII(const string &filename, int maxDim)
     }
 
     dim = (int)fieldNames.size();
-    sampleCount = (int)lines.size() - 1;
+    sampleCount = max(maxSamples, (int)lines.size() - 1);
 
     cout << "Loading " << filename << " dim=" << dim << " samples=" << sampleCount << endl;
     for (const string &s : fieldNames)
         cout << s << endl;
 
-    data.allocate(sampleCount, dim);
-    for (size_t i = 1; i < lines.size(); i++)
+    data.allocate(sampleCount, dim, 0.0f);
+    for (size_t i = 1; i < sampleCount + 1; i++)
     {
         const string &line = lines[i];
         auto parts = util::split(line, ',');
@@ -71,13 +71,23 @@ void FCSFile::loadASCII(const string &filename, int maxDim)
             data(i - 1, j) = convert::toFloat(parts[j]);
         }
     }
+
+    for (int j = 0; j < dim; j++)
+    {
+        if (fieldNames[j] == "Time")
+        {
+            cout << "Destroying time" << endl;
+            for (int i = 0; i < sampleCount; i++)
+                data(i, j) = 0.0f;
+        }
+    }
 }
 
 void FCSFile::saveBinary(const string &filename)
 {
     BinaryDataStreamFile out(filename, true);
     out << dim << sampleCount << fieldNames;
-    out.writePrimitiveGrid(data);
+    out.writePrimitive(data);
     out.closeStream();
 }
 
@@ -85,12 +95,17 @@ void FCSFile::loadBinary(const string &filename)
 {
     BinaryDataStreamFile in(filename, false);
     in >> dim >> sampleCount >> fieldNames;
-    in.readPrimitiveGrid(data);
+    in.readPrimitive(data);
     in.closeStream();
 }
 
 void FCSFile::compensateSamples(const string &infoFilename)
 {
+    cout << "Pre-compensation ranges:" << endl;
+    printDataRanges();
+
+    //return;
+    
     SpilloverMatrix spillover;
     if (!FCSUtil::readSpilloverMatrix(infoFilename, spillover))
     {
@@ -98,6 +113,12 @@ void FCSFile::compensateSamples(const string &infoFilename)
         return;
     }
     DenseMatrixd compensationMatrix = spillover.m.inverse();
+
+    cout << "Spillover matrix:" << endl << spillover.m << endl;
+    cout << "Compensation matrix:" << endl << compensationMatrix << endl;
+
+    // transposition seems to best match flowjo
+    compensationMatrix = compensationMatrix.transpose();
     
     map<string, int> fieldToSampleIndex;
     for (int i = 0; i < fieldNames.size(); i++)
@@ -126,7 +147,24 @@ void FCSFile::compensateSamples(const string &infoFilename)
         for (int i = 0; i < spillover.dim; i++)
         {
             const int sampleDim = fieldToSampleIndex[spillover.header[i]];
-            data(sampleIndex, sampleDim) = v[i];
+            data(sampleIndex, sampleDim) = (float)v[i];
         }
+    }
+
+    cout << "Post-compensation ranges:" << endl;
+    printDataRanges();
+}
+
+void FCSFile::printDataRanges()
+{
+    for (int d = 0; d < dim; d++)
+    {
+        vector<float> values;
+        for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+        {
+            values.push_back(data(sampleIndex, d));
+        }
+        sort(values.begin(), values.end());
+        cout << fieldNames[d] << ": " << FCSUtil::describeQuartiles(values) << endl;
     }
 }

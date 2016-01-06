@@ -2,6 +2,10 @@ library(flowCore)
 
 convertFCS = function(sourceFile, destFile, infoFile) {
 	print(sourceFile)
+	if(file.exists(destFile)) {
+		print("skipping...")
+		return()
+	}
 	data = read.FCS(sourceFile) ## reads in the FCS as a flowFrame called "data"
 	exprs = data@exprs ## subsets just the sample data to a new flowFrame (I think)
 	
@@ -49,9 +53,9 @@ convertFCS = function(sourceFile, destFile, infoFile) {
 	write.csv(df, destFile)
 }
 
-datasetPathFCS = "C:\\Code\\LucidFlow\\datasets\\HIV-FlowCAP4\\FCS\\"
-datasetPathCSV = "C:\\Code\\LucidFlow\\datasets\\HIV-FlowCAP4\\CSV\\"
-datasetPathInfo = "C:\\Code\\LucidFlow\\datasets\\HIV-FlowCAP4\\info\\"
+datasetPathFCS =  "D:\\datasets\\LucidFlow\\HIV-FlowCAP4\\FCS\\"
+datasetPathCSV =  "D:\\datasets\\LucidFlow\\HIV-FlowCAP4\\CSV\\"
+datasetPathInfo = "D:\\datasets\\LucidFlow\\HIV-FlowCAP4\\info\\"
 
 fileList = list.files(path = datasetPathFCS, full.names = FALSE, no.. = TRUE)
 

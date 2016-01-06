@@ -12,3 +12,4 @@ typedef ColorImageR8G8B8A8 Bitmap;
 #include "FCSProcessor.h"
 #include "FCSVisualizer.h"
 #include "FCSDataset.h"
+#include "FCSFeatures.h"

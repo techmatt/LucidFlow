@@ -1,14 +1,18 @@
 
+
 //! maps an input value to [0, 1]
 struct FieldTransform
 {
     enum Type
     {
         Linear,
-        Quartile,
+        Log,
+        LogQuartile,
     };
 
     static FieldTransform createLinear(const string &_name, const vector<float> &sortedValues);
+    static FieldTransform createLog(const string &_name, const vector<float> &sortedValues);
+    static FieldTransform createLogQuartile(const string &_name, const vector<float> &sortedValues);
 
     float transform(float inputValue) const;
 
@@ -17,15 +21,28 @@ struct FieldTransform
     float minValue;
     float maxValue;
 
+    float logOffset;
+    float logScale;
+
+    QuartileRemap quartile;
+
     string name;
+
+private:
+    static float clampedLog(float x, float offset, float scale);
 };
 
 struct FCSProcessor
 {
-    void transform(FCSFile &file);
-    void makeResampledFile(const vector<string> &fileList, int samplesPerFile, const string &filenameOut);
     void makeTransforms(const FCSFile &file);
     void makeClustering(FCSFile &file, int clusterCount);
+
+    void transform(FCSFile &file) const;
+
+    void saveFeatures(FCSFile &file, const string &outDir) const;
+
+    bool axesValid(const string &axisA, const string &axisB) const;
+
 
     vector<FieldTransform> transforms;
     FCSClustering clustering;
