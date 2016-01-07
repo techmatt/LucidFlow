@@ -35,7 +35,7 @@ bool FCSUtil::readSpilloverMatrix(const string &filename, SpilloverMatrix &resul
     result.header = util::split(fixedHeader, ",");
 
     result.dim = (int)result.header.size();
-    cout << "spillover dim: " << result.dim << endl;
+    //cout << "spillover dim: " << result.dim << endl;
 
     result.m.resize(result.dim, result.dim);
     int valueIndex = 0;
@@ -74,4 +74,64 @@ void FCSUtil::makeResampledFile(const vector<string> &fileList, int samplesPerFi
         }
     }
     result.saveBinary(filenameOut);
+}
+
+double FCSUtil::entropy(int aCount, int bCount)
+{
+    if (aCount == 0 || bCount == 0) return 0.0;
+    const double pA = (double)aCount / double(aCount + bCount);
+    const double pB = 1.0 - pA;
+    return -(pA * log(pA) + pB * log(pB));
+}
+
+SplitResult FCSUtil::findBestSplit(const vector<SplitEntry> &sortedEntries)
+{
+    SplitResult result;
+    result.splitValue = -1;
+    result.informationGain = 0;
+
+    int aCount = 0;
+    set<int> splitPoints;
+    for (auto &e : sortedEntries)
+    {
+        splitPoints.insert(e.splitValue);
+        if (e.state == 0) aCount++;
+    }
+    const int bCount = (int)sortedEntries.size() - aCount;
+
+    const double entropyBefore = entropy(aCount, bCount);
+
+    for (int splitValue : splitPoints)
+    {
+        int leftACount = 0, leftBCount = 0;
+        int rightACount = 0, rightBCount = 0;
+        for (auto &e : sortedEntries)
+        {
+            if (e.splitValue <= splitValue)
+            {
+                if (e.state == 0) leftACount++;
+                else leftBCount++;
+            }
+            else
+            {
+                if (e.state == 0) rightACount++;
+                else rightBCount++;
+            }
+        }
+
+        const int leftCount = leftACount + leftBCount;
+        const int rightCount = rightACount + rightBCount;
+        const double leftEntropy = entropy(leftACount, leftBCount);
+        const double rightEntropy = entropy(rightACount, rightBCount);
+
+        const double entropyAfter = leftEntropy * (double)leftCount / (double)sortedEntries.size() +
+                                    rightEntropy * (double)rightCount / (double)sortedEntries.size();
+        const double informationGain = entropyBefore - entropyAfter;
+        if (informationGain > result.informationGain)
+        {
+            result.informationGain = informationGain;
+            result.splitValue = splitValue;
+        }
+    }
+    return result;
 }

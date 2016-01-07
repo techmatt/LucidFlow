@@ -35,10 +35,11 @@ private:
 struct FCSProcessor
 {
     void makeTransforms(const FCSFile &file);
-    void makeClustering(FCSFile &file, int clusterCount);
+    void makeClustering(FCSFile &file, int clusterCount, const string &clusterCacheFile);
 
     void transform(FCSFile &file) const;
 
+    bool featureFilesMissing(const FCSFile &sampleFile, const string &outDir) const;
     void saveFeatures(FCSFile &file, const string &outDir) const;
 
     bool axesValid(const string &axisA, const string &axisB) const;

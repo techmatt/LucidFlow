@@ -1,0 +1,69 @@
+library(flowCore)
+
+convertFCS = function(sourceFile, destFile, infoFile) {
+	print(sourceFile)
+	if(file.exists(destFile)) {
+		print("skipping...")
+		return()
+	}
+	data = read.FCS(sourceFile) ## reads in the FCS as a flowFrame called "data"
+	exprs = data@exprs ## subsets just the sample data to a new flowFrame (I think)
+	
+	
+	#print(description(data))
+	#print(typeof(description(data)))
+	#lapply(description(data), write, infoFile, append=TRUE, ncolumns=1000)
+	#writeLines(description(data), infoFile)
+	#info = as.data.frame(do.call(rbind, description(data)))
+	#write.csv(info, infoFile)
+	#dput(description(data), infoFile)
+	
+	desc = description(data)
+	for(i in 1:length(desc)) {
+		val = desc[i]
+		if(names(val) == "SPILL") {
+			print("spill matrix found")
+			spillframe = as.data.frame(val)
+			write.csv(spillframe, infoFile)
+		}
+	}
+
+	
+	i_cols = 1:dim(exprs)[2]   ##creates list with 8 entries; change to num of parameters in your sample
+	col_names = colnames(exprs[,i_cols]) #extracts column names from data (aka which parameter is in which column b/c it might vary from sample to sample)
+	df = data.frame(exprs[,i_cols]) ##subsets the flowFrame "exprs" to a dataframe "df"
+	names(df) = col_names ##makes the df column names same as original flowFrame data
+	
+	##biexp = biexponentialTransform("myTransform")
+	##after = df
+	
+	#for(i in 1:dim(exprs)[2]) {
+	#	temp = transform(subset(df, select=col_names[i]), col_names[i]=biexp(col_names[i]))
+	#	after = cbind(after, temp)
+	#}
+	
+	#print(dim(df))
+	#for(i in 1:dim(df)[1]) {
+	#	print(i)
+	#	for(j in 1:dim(df)[2]) {
+	#		df[i,j] = mylog(df[i,j])
+	#	}
+	#}
+	
+	write.csv(df, destFile)
+}
+
+datasetPathFCS =  "D:\\datasets\\LucidFlow\\HIV-FlowCAP4\\FCS\\"
+datasetPathCSV =  "D:\\datasets\\LucidFlow\\HIV-FlowCAP4\\CSV\\"
+datasetPathInfo = "D:\\datasets\\LucidFlow\\HIV-FlowCAP4\\info\\"
+
+fileList = list.files(path = datasetPathFCS, full.names = FALSE, no.. = TRUE)
+
+for(FCSFile in fileList) {
+	CSVFile = gsub(".FCS", ".csv", FCSFile)
+	CSVFile = gsub(".fcs", ".csv", FCSFile)
+	InfoFile = gsub(".csv", ".txt", CSVFile)
+	convertFCS(paste(datasetPathFCS, FCSFile, sep=""),
+			   paste(datasetPathCSV, CSVFile, sep=""),
+			   paste(datasetPathInfo, InfoFile, sep=""))
+}

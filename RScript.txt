@@ -6,17 +6,8 @@ convertFCS = function(sourceFile, destFile, infoFile) {
 		print("skipping...")
 		return()
 	}
-	data = read.FCS(sourceFile) ## reads in the FCS as a flowFrame called "data"
-	exprs = data@exprs ## subsets just the sample data to a new flowFrame (I think)
-	
-	
-	#print(description(data))
-	#print(typeof(description(data)))
-	#lapply(description(data), write, infoFile, append=TRUE, ncolumns=1000)
-	#writeLines(description(data), infoFile)
-	#info = as.data.frame(do.call(rbind, description(data)))
-	#write.csv(info, infoFile)
-	#dput(description(data), infoFile)
+	data = read.FCS(sourceFile)
+	exprs = data@exprs
 	
 	desc = description(data)
 	for(i in 1:length(desc)) {
@@ -28,27 +19,12 @@ convertFCS = function(sourceFile, destFile, infoFile) {
 		}
 	}
 
+	i_cols = 1:dim(exprs)[2]
+	col_names = colnames(exprs[,i_cols])
 	
-	i_cols = 1:dim(exprs)[2]   ##creates list with 8 entries; change to num of parameters in your sample
-	col_names = colnames(exprs[,i_cols]) #extracts column names from data (aka which parameter is in which column b/c it might vary from sample to sample)
-	df = data.frame(exprs[,i_cols]) ##subsets the flowFrame "exprs" to a dataframe "df"
-	names(df) = col_names ##makes the df column names same as original flowFrame data
+	df = data.frame(exprs[,i_cols])
 	
-	##biexp = biexponentialTransform("myTransform")
-	##after = df
-	
-	#for(i in 1:dim(exprs)[2]) {
-	#	temp = transform(subset(df, select=col_names[i]), col_names[i]=biexp(col_names[i]))
-	#	after = cbind(after, temp)
-	#}
-	
-	#print(dim(df))
-	#for(i in 1:dim(df)[1]) {
-	#	print(i)
-	#	for(j in 1:dim(df)[2]) {
-	#		df[i,j] = mylog(df[i,j])
-	#	}
-	#}
+	names(df) = col_names
 	
 	write.csv(df, destFile)
 }

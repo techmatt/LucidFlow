@@ -77,9 +77,17 @@ float FieldTransform::transform(float inputValue) const
     return 0.0f;
 }
 
-void FCSProcessor::makeClustering(FCSFile &file, int clusterCount)
+void FCSProcessor::makeClustering(FCSFile &file, int clusterCount, const string &clusterCacheFile)
 {
-    clustering.go(file, clusterCount);
+    file.checkAndFixTransformedValues();
+    if (!util::fileExists(clusterCacheFile))
+    {
+        cout << "Creating " << clusterCacheFile << "..." << endl;
+        clustering.go(file, clusterCount);
+        clustering.save(clusterCacheFile);
+    }
+    cout << "Loading " << clusterCacheFile << endl;
+    clustering.load(clusterCacheFile);
 }
 
 void FCSProcessor::transform(FCSFile &file) const
@@ -128,7 +136,30 @@ bool FCSProcessor::axesValid(const string &axisA, const string &axisB) const
         return false;
     if (axisA == "Time" || axisB == "Time")
         return false;
-    return true;
+
+    if (axisA == "SSC-A" && axisB == "G660-A")
+        return true;
+    if (axisA == "V655-A" && axisB == "B710-A")
+        return true;
+    
+    return false;
+}
+
+bool FCSProcessor::featureFilesMissing(const FCSFile &sampleFile, const string &outDir) const
+{
+    for (int axisA = 0; axisA < sampleFile.dim; axisA++)
+        for (int axisB = 0; axisB < sampleFile.dim; axisB++)
+        {
+            if (axesValid(sampleFile.fieldNames[axisA], sampleFile.fieldNames[axisB]))
+            {
+                const string featureFilename = outDir + to_string(axisA) + "_" + to_string(axisB) + ".dat";
+                if (!util::fileExists(featureFilename))
+                {
+                    return true;
+                }
+            }
+        }
+    return false;
 }
 
 void FCSProcessor::saveFeatures(FCSFile &file, const string &outDir) const
@@ -137,32 +168,32 @@ void FCSProcessor::saveFeatures(FCSFile &file, const string &outDir) const
 
     const int imageSize = 32;
     transform(file);
-    int axisA = file.getFieldIndex("SSC-A");
-    for (int axisB = 0; axisB < file.dim; axisB++)
-    {
-        if (axesValid(file.fieldNames[axisA], file.fieldNames[axisB]))
+    for (int axisA = 0; axisA < file.dim; axisA++)
+        for (int axisB = 0; axisB < file.dim; axisB++)
         {
-            const string featureFilename = outDir + to_string(axisA) + "_" + to_string(axisB) + ".dat";
-            if (!util::fileExists(featureFilename))
+            if (axesValid(file.fieldNames[axisA], file.fieldNames[axisB]))
             {
-                cout << "Saving " << featureFilename << endl;
-                FCSFeatures features;
-                QuartileRemap quartile;
-                features.create(file, *this, axisA, axisB, imageSize, quartile);
-                features.save(featureFilename);
-                features.saveDebugViz(outDir);
+                const string featureFilename = outDir + to_string(axisA) + "_" + to_string(axisB) + ".dat";
+                if (!util::fileExists(featureFilename))
+                {
+                    cout << "Saving " << featureFilename << endl;
+                    FCSFeatures features;
+                    QuartileRemap quartile;
+                    features.create(file, *this, axisA, axisB, imageSize, quartile);
+                    features.save(featureFilename);
+                    features.saveDebugViz(outDir);
+                }
             }
         }
-    }
 }
 
-float FCSPerturbationGenerator::avgMatchDist(const FCSClustering &clusteringA, const FCSClustering &clusteringB)
+/*float FCSPerturbationGenerator::avgMatchDist(const FCSClustering &clusteringA, const FCSClustering &clusteringB)
 {
-    const int n = clusteringA.c.clusterCount();
+    const int n = (int)clusteringA.clusters.size();
     float sum = 0.0f;
     for (int clusterBIndex = 0; clusterBIndex < n; clusterBIndex++)
     {
-        int clusterAIndex = clusteringA.c.quantizeToNearestClusterIndex(clusteringB.c.clusterCenter(clusterBIndex));
+        int clusterAIndex = clusteringA.c.quantizeToNearestClusterIndex(clusteringB.clusters(clusterBIndex));
         sum += sqrtf(MathVectorKMeansMetric<float>::Dist(clusteringA.c.clusterCenter(clusterAIndex), clusteringB.c.clusterCenter(clusterBIndex)));
     }
     return sum / (float)n;
@@ -175,7 +206,7 @@ float FCSPerturbationGenerator::avgMatchDistSymmetric(const FCSClustering &clust
 
 float FCSPerturbationGenerator::avgInterClusterDist(const FCSClustering &clustering)
 {
-    const int n = clustering.c.clusterCount();
+    const int n = (int)clustering.clusters.size();
     auto find2ndClusterIndex = [&](int sourceClusterIndex)
     {
         float bestDist = std::numeric_limits<float>::max();
@@ -184,7 +215,7 @@ float FCSPerturbationGenerator::avgInterClusterDist(const FCSClustering &cluster
         {
             if (clusterIndex == sourceClusterIndex)
                 continue;
-            float dist = MathVectorKMeansMetric<float>::Dist(clustering.c.clusterCenter(sourceClusterIndex), clustering.c.clusterCenter(clusterIndex));
+            float dist = MathVectorKMeansMetric<float>::Dist(clustering.getClusterColor.clusterCenter(sourceClusterIndex), clustering.c.clusterCenter(clusterIndex));
             if (dist < bestDist)
             {
                 bestDist = dist;
@@ -200,7 +231,7 @@ float FCSPerturbationGenerator::avgInterClusterDist(const FCSClustering &cluster
         sum += find2ndClusterIndex(clusterIndex);
     }
     return sum / (float)n;
-}
+}*/
 
 void FCSPerturbationGenerator::init(const string &FCSDirectory, int maxFileCount)
 {

@@ -6,7 +6,7 @@ void FCSFeatures::create(const FCSFile &file, const FCSProcessor &processor, int
     axisA = _axisA;
     axisB = _axisB;
 
-    const int clusterCount = processor.clustering.c.clusterCount();
+    const int clusterCount = (int)processor.clustering.clusters.size();
     features.allocate(imageSize, imageSize, clusterCount + 1);
 
     for (int clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++)
@@ -22,8 +22,8 @@ void FCSFeatures::create(const FCSFile &file, const FCSProcessor &processor, int
 void FCSFeatures::saveDebugViz(const string &baseDir) const
 {
     const Bitmap bmpA = getChannel(0);
-    const Bitmap bmpB = getChannel(features.getDimZ() - 2);
-    const Bitmap bmpC = getChannel(features.getDimZ() - 1);
+    const Bitmap bmpB = getChannel((int)features.getDimZ() - 2);
+    const Bitmap bmpC = getChannel((int)features.getDimZ() - 1);
 
     LodePNG::save(bmpA, baseDir + to_string(axisA) + "_" + to_string(axisB) + "_c0.png");
     LodePNG::save(bmpB, baseDir + to_string(axisA) + "_" + to_string(axisB) + "_c1.png");
@@ -40,7 +40,7 @@ void FCSFeatures::setChannel(const Bitmap &bmp, int channel)
 
 Bitmap FCSFeatures::getChannel(int channel) const
 {
-    Bitmap result(features.getDimX(), features.getDimY());
+    Bitmap result((int)features.getDimX(), (int)features.getDimY());
     for (auto &p : result)
     {
         BYTE v = features(p.x, p.y, channel);

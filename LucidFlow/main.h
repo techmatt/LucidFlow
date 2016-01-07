@@ -1,4 +1,8 @@
 
+#ifdef _DEBUG
+#define MLIB_ERROR_CHECK
+#endif
+
 #include "mLibCore.h"
 #include "mLibLodePNG.h"
 

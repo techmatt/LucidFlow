@@ -16,7 +16,7 @@ Bitmap FCSVisualizer::visualizePoint(const FCSFile &file, const FCSProcessor &pr
         vec2i coord = math::round(v * (float)imageSize);
         if (result.isValidCoordinate(coord))
         {
-            result(coord) = processor.clustering.getClusterColor(sample);
+            result(coord) = processor.clustering.getCluster(sample).color;
         }
     }
 
@@ -26,7 +26,7 @@ Bitmap FCSVisualizer::visualizePoint(const FCSFile &file, const FCSProcessor &pr
 Bitmap FCSVisualizer::visualizeDensity(const FCSFile &file, const FCSProcessor &processor, int axisA, int axisB, int imageSize, int clusterFilter, const QuartileRemap &params)
 {
     Grid2f cells(imageSize, imageSize, 0.0f);
-    const int borderSize = 3;
+    const int borderSize = 1;
 
     for (const MathVectorf &sample : file.transformedSamples)
     {
@@ -55,6 +55,9 @@ Bitmap FCSVisualizer::visualizeDensity(const FCSFile &file, const FCSProcessor &
         for (auto &v : cells)
             if (v.value > 1.0f) nonzeroValues.push_back(v.value);
         std::sort(nonzeroValues.begin(), nonzeroValues.end());
+
+        if (nonzeroValues.size() == 0)
+            nonzeroValues.push_back(1.0f);
 
         paramsFinal.quartiles.resize(8);
         paramsFinal.quartiles[0] = 0.0f;

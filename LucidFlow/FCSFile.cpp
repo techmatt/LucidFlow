@@ -1,15 +1,40 @@
 
 #include "main.h"
 
-int FCSClustering::getClusterIndex(const MathVectorf &sample) const
+void FCSClustering::save(const string &filename) const
 {
-    return c.quantizeToNearestClusterIndex(sample);
+    BinaryDataStreamFile out(filename, true);
+    out << clusters;
+    out.closeStream();
 }
 
-vec4uc FCSClustering::getClusterColor(const MathVectorf &sample) const
+void FCSClustering::load(const string &filename)
 {
-    UINT clusterIndex = c.quantizeToNearestClusterIndex(sample);
-    return colors[clusterIndex];
+    BinaryDataStreamFile in(filename, false);
+    in >> clusters;
+    in.closeStream();
+}
+
+int FCSClustering::getClusterIndex(const MathVectorf &sample) const
+{
+    int closestClusterIndex = -1;
+    double closestClusterDist = MathVectorKMeansMetric<float>::Dist(sample, clusters[0].center);
+    for (int clusterIndex = 1; clusterIndex < (int)clusters.size(); clusterIndex++)
+    {
+        double curClusterDist = MathVectorKMeansMetric<float>::Dist(sample, clusters[clusterIndex].center);
+        if (curClusterDist < closestClusterDist)
+        {
+            closestClusterIndex = clusterIndex;
+            closestClusterDist = curClusterDist;
+        }
+    }
+    return closestClusterIndex;
+}
+
+const FCSCluster& FCSClustering::getCluster(const MathVectorf &sample) const
+{
+    int clusterIndex = getClusterIndex(sample);
+    return clusters[clusterIndex];
 }
 
 void FCSClustering::go(const FCSFile &file, int clusterCount)
@@ -18,9 +43,11 @@ void FCSClustering::go(const FCSFile &file, int clusterCount)
     const double maxDelta = 1e-7;
 
     MLIB_ASSERT_STR(file.transformedSamples.size() > 0, "Samples not transformed");
-    c.cluster(file.transformedSamples, clusterCount, maxIterations, true, maxDelta);
 
-    colors.resize(clusterCount);
+    KMeansClustering < MathVectorf, MathVectorKMeansMetric<float> > c;
+    c.cluster(file.transformedSamples, clusterCount, maxIterations, true, maxDelta);
+    
+    clusters.resize(clusterCount);
 
     for (int i = 0; i < clusterCount; i++)
     {
@@ -30,7 +57,8 @@ void FCSClustering::go(const FCSFile &file, int clusterCount)
             randomColor = vec3f(r(), r(), r());
         } while (randomColor.length() <= 0.8f);
         randomColor *= 255.0f;
-        colors[i] = vec4uc(util::boundToByte(randomColor.r), util::boundToByte(randomColor.g), util::boundToByte(randomColor.b), 255);
+        clusters[i].color = vec4uc(util::boundToByte(randomColor.r), util::boundToByte(randomColor.g), util::boundToByte(randomColor.b), 255);
+        clusters[i].center = c.clusterCenter(i);
     }
 }
 
@@ -49,11 +77,11 @@ void FCSFile::loadASCII(const string &filename, int maxDim, int maxSamples)
     }
 
     dim = (int)fieldNames.size();
-    sampleCount = max(maxSamples, (int)lines.size() - 1);
+    sampleCount = min(maxSamples, (int)lines.size() - 1);
 
     cout << "Loading " << filename << " dim=" << dim << " samples=" << sampleCount << endl;
-    for (const string &s : fieldNames)
-        cout << s << endl;
+    //for (const string &s : fieldNames)
+    //    cout << s << endl;
 
     data.allocate(sampleCount, dim, 0.0f);
     for (size_t i = 1; i < sampleCount + 1; i++)
@@ -76,7 +104,7 @@ void FCSFile::loadASCII(const string &filename, int maxDim, int maxSamples)
     {
         if (fieldNames[j] == "Time")
         {
-            cout << "Destroying time" << endl;
+            //cout << "Destroying time" << endl;
             for (int i = 0; i < sampleCount; i++)
                 data(i, j) = 0.0f;
         }
@@ -101,8 +129,8 @@ void FCSFile::loadBinary(const string &filename)
 
 void FCSFile::compensateSamples(const string &infoFilename)
 {
-    cout << "Pre-compensation ranges:" << endl;
-    printDataRanges();
+    //cout << "Pre-compensation ranges:" << endl;
+    //printDataRanges();
 
     //return;
     
@@ -114,8 +142,8 @@ void FCSFile::compensateSamples(const string &infoFilename)
     }
     DenseMatrixd compensationMatrix = spillover.m.inverse();
 
-    cout << "Spillover matrix:" << endl << spillover.m << endl;
-    cout << "Compensation matrix:" << endl << compensationMatrix << endl;
+    //cout << "Spillover matrix:" << endl << spillover.m << endl;
+    //cout << "Compensation matrix:" << endl << compensationMatrix << endl;
 
     // transposition seems to best match flowjo
     compensationMatrix = compensationMatrix.transpose();
@@ -151,8 +179,8 @@ void FCSFile::compensateSamples(const string &infoFilename)
         }
     }
 
-    cout << "Post-compensation ranges:" << endl;
-    printDataRanges();
+    //cout << "Post-compensation ranges:" << endl;
+    //printDataRanges();
 }
 
 void FCSFile::printDataRanges()

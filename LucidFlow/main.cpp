@@ -3,7 +3,7 @@
 
 void goA()
 {
-    const int clusterCount = 1;
+    /*const int clusterCount = 1;
 
     FCSFile file;
     //file.loadASCII(R"(C:\Users\mdfisher\Downloads\FCSDump.txt)", 12);
@@ -17,7 +17,7 @@ void goA()
 
     util::makeDirectory("viz");
 
-    FCSVisualizer::saveAllAxesViz(file, processor, 2, 256, "viz/");
+    FCSVisualizer::saveAllAxesViz(file, processor, 2, 256, "viz/");*/
 
     /*int axisA = 2;
     int axisB = 10;
@@ -44,20 +44,27 @@ void goB()
     const int clusterCount = 30;
 
     FCSDataset dataset;
-    dataset.init(R"(C:\Code\LucidFlow\datasets\HIV-FlowCAP4\)");
+    dataset.init(R"(D:\datasets\LucidFlow\HIV-FlowCAP4\)");
+    dataset.loadLabels("MetaDataFull.csv");
     dataset.createBinaryFiles();
 
-    dataset.makeResampledFile();
+    dataset.makeResampledFile("sampleA.dat", 200, 5000);
+    dataset.makeResampledFile("sampleB.dat", 2, 1000);
 
-    dataset.initProcessor(50);
+    dataset.initProcessor("sampleA.dat", 50);
+    //dataset.initProcessor("sampleB.dat", 8);
 
     dataset.makeFeatures();
+
+    util::makeDirectory(dataset.baseDir + "featureEval");
+
+    dataset.evaluateFeatureSplits();
 }
 
 void main()
 {
     goB();
-    goA();
+    //goA();
     
     cout << "done!" << endl;
     cin.get();

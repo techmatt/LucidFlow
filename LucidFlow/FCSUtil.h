@@ -52,10 +52,37 @@ struct SpilloverMatrix
     vector<string> header;
 };
 
+struct SplitEntry
+{
+    SplitEntry() {}
+    SplitEntry(int _splitValue, int _state)
+    {
+        splitValue = _splitValue;
+        state = _state;
+    }
+    int splitValue;
+    int state;
+};
+
+inline bool operator < (const SplitEntry &a, const SplitEntry &b)
+{
+    return a.splitValue < b.splitValue;
+}
+
+struct SplitResult
+{
+    int splitValue;
+    double informationGain;
+};
+
 struct FCSUtil
 {
+
     static void makeResampledFile(const vector<string> &fileList, int samplesPerFile, const string &filenameOut);
     static string describeQuartiles(const vector<float> &sortedValues);
     static float getQuartile(const vector<float> &sortedValues, float quartile);
     static bool readSpilloverMatrix(const string &filename, SpilloverMatrix &result);
+    static SplitResult findBestSplit(const vector<SplitEntry> &sortedEntries);
+
+    static double entropy(int aCount, int bCount);
 };
