@@ -71,6 +71,11 @@ inline bool operator < (const SplitEntry &a, const SplitEntry &b)
 
 struct SplitResult
 {
+    SplitResult()
+    {
+        splitValue = -666;
+        informationGain = 0.0;
+    }
     int splitValue;
     double informationGain;
 };

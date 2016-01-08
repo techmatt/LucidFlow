@@ -41,8 +41,6 @@ void goA()
 
 void goB()
 {
-    const int clusterCount = 30;
-
     FCSDataset dataset;
     dataset.init(R"(D:\datasets\LucidFlow\HIV-FlowCAP4\)");
     dataset.loadLabels("MetaDataFull.csv");
@@ -51,14 +49,14 @@ void goB()
     dataset.makeResampledFile("sampleA.dat", 200, 5000);
     dataset.makeResampledFile("sampleB.dat", 2, 1000);
 
-    dataset.initProcessor("sampleA.dat", 50);
+    dataset.initProcessor("sampleA.dat", constants::clusterCount);
     //dataset.initProcessor("sampleB.dat", 8);
 
     dataset.makeFeatures();
 
     util::makeDirectory(dataset.baseDir + "featureEval");
 
-    dataset.evaluateFeatureSplits();
+    //dataset.evaluateFeatureSplits();
 }
 
 void main()

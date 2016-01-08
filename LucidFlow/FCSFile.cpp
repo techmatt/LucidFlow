@@ -18,8 +18,8 @@ void FCSClustering::load(const string &filename)
 int FCSClustering::getClusterIndex(const MathVectorf &sample) const
 {
     int closestClusterIndex = -1;
-    double closestClusterDist = MathVectorKMeansMetric<float>::Dist(sample, clusters[0].center);
-    for (int clusterIndex = 1; clusterIndex < (int)clusters.size(); clusterIndex++)
+    double closestClusterDist = std::numeric_limits<double>::max();
+    for (int clusterIndex = 0; clusterIndex < (int)clusters.size(); clusterIndex++)
     {
         double curClusterDist = MathVectorKMeansMetric<float>::Dist(sample, clusters[clusterIndex].center);
         if (curClusterDist < closestClusterDist)
@@ -39,7 +39,7 @@ const FCSCluster& FCSClustering::getCluster(const MathVectorf &sample) const
 
 void FCSClustering::go(const FCSFile &file, int clusterCount)
 {
-    const int maxIterations = 1000;
+    const int maxIterations = 100;
     const double maxDelta = 1e-7;
 
     MLIB_ASSERT_STR(file.transformedSamples.size() > 0, "Samples not transformed");
@@ -125,6 +125,8 @@ void FCSFile::loadBinary(const string &filename)
     in >> dim >> sampleCount >> fieldNames;
     in.readPrimitive(data);
     in.closeStream();
+
+    id = util::removeExtensions(util::fileNameFromPath(filename));
 }
 
 void FCSFile::compensateSamples(const string &infoFilename)

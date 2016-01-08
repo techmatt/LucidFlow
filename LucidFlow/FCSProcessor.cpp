@@ -132,39 +132,41 @@ void FCSProcessor::makeTransforms(const FCSFile &file)
 
 bool FCSProcessor::axesValid(const string &axisA, const string &axisB) const
 {
-    if (axisA == axisB)
-        return false;
-    if (axisA == "Time" || axisB == "Time")
+    if (axisA >= axisB)
         return false;
 
-    if (axisA == "SSC-A" && axisB == "G660-A")
+    vector<string> unusedAxes;
+    unusedAxes.push_back("B710-A");
+    unusedAxes.push_back("V705-A");
+    unusedAxes.push_back("V655-A");
+    unusedAxes.push_back("V605-A");
+    //unusedAxes.push_back("V565-A"); // test axis to see how strong the feature signal is
+    unusedAxes.push_back("Time");
+
+    for (auto &s : unusedAxes)
+        if (axisA == s || axisB == s)
+            return false;
+
+    return true;
+
+    /*if (axisA == "SSC-A" && axisB == "G660-A")
         return true;
     if (axisA == "V655-A" && axisB == "B710-A")
-        return true;
+        return true;*/
     
     return false;
 }
 
-bool FCSProcessor::featureFilesMissing(const FCSFile &sampleFile, const string &outDir) const
+void FCSProcessor::saveFeatures(FCSFile &file, const string &outFilename) const
 {
-    for (int axisA = 0; axisA < sampleFile.dim; axisA++)
-        for (int axisB = 0; axisB < sampleFile.dim; axisB++)
-        {
-            if (axesValid(sampleFile.fieldNames[axisA], sampleFile.fieldNames[axisB]))
-            {
-                const string featureFilename = outDir + to_string(axisA) + "_" + to_string(axisB) + ".dat";
-                if (!util::fileExists(featureFilename))
-                {
-                    return true;
-                }
-            }
-        }
-    return false;
-}
+    if (util::fileExists(outFilename))
+    {
+        cout << "Skipping " << outFilename << endl;
+        return;
+    }
 
-void FCSProcessor::saveFeatures(FCSFile &file, const string &outDir) const
-{
-    util::makeDirectory(outDir);
+    vector<FCSFeatures> allFeatures;
+    allFeatures.reserve(file.dim * file.dim);
 
     const int imageSize = 32;
     transform(file);
@@ -173,18 +175,29 @@ void FCSProcessor::saveFeatures(FCSFile &file, const string &outDir) const
         {
             if (axesValid(file.fieldNames[axisA], file.fieldNames[axisB]))
             {
-                const string featureFilename = outDir + to_string(axisA) + "_" + to_string(axisB) + ".dat";
-                if (!util::fileExists(featureFilename))
-                {
-                    cout << "Saving " << featureFilename << endl;
-                    FCSFeatures features;
-                    QuartileRemap quartile;
-                    features.create(file, *this, axisA, axisB, imageSize, quartile);
-                    features.save(featureFilename);
-                    features.saveDebugViz(outDir);
-                }
+                //cout << "Generating " << axisA << "-" << axisB << endl;
+                    
+                allFeatures.push_back(FCSFeatures());
+                FCSFeatures &features = allFeatures.back();
+                QuartileRemap quartile;
+                features.create(file, *this, axisA, axisB, imageSize, quartile);
+                //features.save(featureFilename);
+                //features.saveDebugViz(outDir);
+
+                /*vector<int> clusterHits(clustering.clusters.size(), 0);
+                for (auto &sample : file.transformedSamples)
+                    clusterHits[clustering.getClusterIndex(sample)]++;
+                ofstream clusterHitsFile(outDir + "allClusterHits.csv");
+                clusterHitsFile << "cluster,hits" << endl;
+                for (int clusterIndex = 0; clusterIndex < clusterHits.size(); clusterIndex++)
+                    clusterHitsFile << clusterIndex << "," << clusterHits[clusterIndex] << endl;*/
             }
         }
+
+    //BinaryDataStreamFile out(outFilename, true);
+    BinaryDataStreamZLibFile out(outFilename, true);
+    out << allFeatures;
+    out.closeStream();
 }
 
 /*float FCSPerturbationGenerator::avgMatchDist(const FCSClustering &clusteringA, const FCSClustering &clusteringB)

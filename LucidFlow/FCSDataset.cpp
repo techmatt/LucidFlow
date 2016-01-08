@@ -95,11 +95,13 @@ void FCSDataset::initProcessor(const string &resampledFilename, int clusterCount
     processor.makeTransforms(resampledFile);
     processor.transform(resampledFile);
 
-    processor.makeClustering(resampledFile, clusterCount, baseDir + util::replace(resampledFilename, ".dat", ".cls"));
+    const string clusterFilename = baseDir + util::removeExtensions(resampledFilename) + "_" + to_string(clusterCount) + ".clusters";
+    processor.makeClustering(resampledFile, clusterCount, clusterFilename);
 }
 
 void FCSDataset::makeFeatures()
 {
+    util::makeDirectory(baseDir + "features");
     auto allFiles = Directory::enumerateFilesWithPath(baseDir + "DAT\\", ".dat");
 
     FCSFile sampleFile;
@@ -108,23 +110,55 @@ void FCSDataset::makeFeatures()
 #pragma omp parallel for schedule(dynamic,1) num_threads(7)
     for (int fileIndex = 0; fileIndex < allFiles.size(); fileIndex++)
     {
-        const string &filename = allFiles[fileIndex];
-        const string &outDir = baseDir + "features/" + util::removeExtensions(util::fileNameFromPath(filename)) + "/";
+        const string &fcsFilename = allFiles[fileIndex];
+        const string &featureFilename = baseDir + "features/" + util::removeExtensions(util::fileNameFromPath(fcsFilename)) + ".feat";
 
-        if (processor.featureFilesMissing(sampleFile, outDir))
+        if (util::fileExists(featureFilename))
         {
-            FCSFile file;
-            file.loadBinary(filename);
-            processor.saveFeatures(file, outDir);
+            cout << "Skipping " << featureFilename << endl;
+            continue;
+        }
+
+        cout << "Creating " << featureFilename << endl;
+        FCSFile fcsFile;
+        fcsFile.loadBinary(fcsFilename);
+        processor.saveFeatures(fcsFile, featureFilename);
+    }
+
+#pragma omp parallel for schedule(dynamic,1) num_threads(7)
+    for (int fileIndex = 0; fileIndex < allFiles.size(); fileIndex++)
+    {
+        const string &fcsFilename = allFiles[fileIndex];
+        const string &featureFilename = baseDir + "features/" + util::removeExtensions(util::fileNameFromPath(fcsFilename)) + ".feat";
+
+        vector<FCSFeatures> allFeatures;
+        cout << "Loading " << featureFilename << endl;
+        //BinaryDataStreamFile in(featureFilename, false);
+        BinaryDataStreamZLibFile in(featureFilename, false);
+        in >> allFeatures;
+        in.closeStream();
+
+        for (const FCSFeatures &f : allFeatures)
+        {
+            FCSFeatures *newF = new FCSFeatures();
+            newF->axisA = f.axisA;
+            newF->axisB = f.axisB;
+            newF->fcsID = f.fcsID;
+            newF->clusterHits = std::move(f.clusterHits);
+            newF->features = std::move(f.features);
+#pragma omp critical
+            featureDatabase.addEntry(newF);
         }
     }
 }
 
 void FCSDataset::evaluateFeatureSplits()
 {
+    cout << "Evaluating all feature splits" << endl;
     const string fcsFile0 = entries[0].fileUnstim;
 
     int dim = resampledFile.dim;
+    Grid2d bestSplitValue(dim, dim, 0.0f);
     for (int axisA = 0; axisA < dim; axisA++)
         for (int axisB = 0; axisB < dim; axisB++)
         {
@@ -132,12 +166,28 @@ void FCSDataset::evaluateFeatureSplits()
             const string featureFilename = baseDir + "features/" + fcsFile0 + "/" + axesString + ".dat";
             if (util::fileExists(featureFilename))
             {
-                evaluateFeatureSplits(axisA, axisB, baseDir + "featureEval/" + axesString + "/");
+                SplitResult bestSplit = evaluateFeatureSplits(axisA, axisB, baseDir + "featureEval/" + axesString + "/");
+                bestSplitValue(axisA, axisB) = bestSplit.informationGain;
             }
         }
+
+    ofstream file(baseDir + "allFeaturePairs.csv");
+    for (int axisA = 0; axisA < dim; axisA++)
+        file << "," << axisA;
+    file << endl;
+
+    for (int axisA = 0; axisA < dim; axisA++)
+    {
+        file << axisA;
+        for (int axisB = 0; axisB < dim; axisB++)
+        {
+            file << "," << bestSplitValue(axisA, axisB);
+        }
+        file << endl;
+    }
 }
 
-void FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string &outDir)
+SplitResult FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string &outDir)
 {
     util::makeDirectory(outDir);
     cout << "Making feature split for " << axisA << "," << axisB << endl;
@@ -151,7 +201,7 @@ void FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string &outDi
         allFeatures[entryIndex].load(featureFilename);
     }
 
-    double bestGain = 0.0;
+    SplitResult bestOverallSplit;
     vector<SplitEntry> bestEntries;
     vec3i bestCoord;
 
@@ -171,11 +221,11 @@ void FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string &outDi
 
             const SplitResult bestSplit = FCSUtil::findBestSplit(sortedEntries);
 
-            if (bestSplit.informationGain > bestGain)
+            if (bestSplit.informationGain > bestOverallSplit.informationGain)
             {
-                bestGain = bestSplit.informationGain;
+                bestOverallSplit = bestSplit;
                 bestEntries = sortedEntries;
-                bestCoord = vec3i(p.x, p.y, clusterIndex);
+                bestCoord = vec3i((int)p.x, (int)p.y, clusterIndex);
             }
 
             BYTE value = util::boundToByte(bestSplit.informationGain / 0.0002f);
@@ -186,12 +236,14 @@ void FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string &outDi
     }
 
     ofstream file(outDir + "bestSplit.csv");
-    file << "Information gain:," << bestGain << endl;
+    file << "Information gain:," << bestOverallSplit.informationGain << endl;
+    file << "Split:," << bestOverallSplit.splitValue << endl;
     file << "Coords:," << bestCoord.toString(",") << endl;
-    file << "Axes:" << axisA << "," << axisB << endl;
-    file << "Axes:" << resampledFile.fieldNames[axisA] << "," << resampledFile.fieldNames[axisB] << endl;
+    file << "Axes:," << axisA << "," << axisB << endl;
+    file << "Axes:," << resampledFile.fieldNames[axisA] << "," << resampledFile.fieldNames[axisB] << endl;
     for (const SplitEntry &entry : bestEntries)
     {
         file << entry.splitValue << "," << entry.state << endl;
     }
+    return bestOverallSplit;
 }

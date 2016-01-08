@@ -39,11 +39,9 @@ struct FCSProcessor
 
     void transform(FCSFile &file) const;
 
-    bool featureFilesMissing(const FCSFile &sampleFile, const string &outDir) const;
     void saveFeatures(FCSFile &file, const string &outDir) const;
 
     bool axesValid(const string &axisA, const string &axisB) const;
-
 
     vector<FieldTransform> transforms;
     FCSClustering clustering;

@@ -64,6 +64,7 @@ struct FCSFile
         return true;
     }
 
+    string id;
     int dim;
     int sampleCount;
     vector<string> fieldNames;
