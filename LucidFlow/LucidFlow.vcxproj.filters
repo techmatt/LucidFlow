@@ -7,6 +7,9 @@
     <Filter Include="FCS">
       <UniqueIdentifier>{5dac0761-dca7-4702-8829-c134b6bce3f6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Caffe">
+      <UniqueIdentifier>{e6f4fde1-dc4e-4edf-aa48-3c2b043faf1c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
@@ -33,6 +36,9 @@
     <ClInclude Include="constants.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="LevelDBExporter.h">
+      <Filter>Caffe</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -58,6 +64,9 @@
     </ClCompile>
     <ClCompile Include="FCSFeatures.cpp">
       <Filter>FCS</Filter>
+    </ClCompile>
+    <ClCompile Include="LevelDBExporter.cpp">
+      <Filter>Caffe</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

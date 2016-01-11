@@ -1,84 +1,58 @@
 
 #include "main.h"
 
-float FieldTransform::clampedLog(float x, float offset, float scale)
+void FCSProcessor::makeQuartiles(FCSFile &file, const string &quartileCacheFile)
 {
-    x += offset;
-    if (x <= 1.0f)
-        return 0.0f;
-    return log(x) * scale;
-}
-
-FieldTransform FieldTransform::createLinear(const string &_name, const vector<float> &sortedValues)
-{
-    FieldTransform result;
-    result.name = _name;
-    result.type = Linear;
-    result.minValue = sortedValues.front();
-    result.maxValue = sortedValues.back();
-    return result;
-}
-
-FieldTransform FieldTransform::createLog(const string &_name, const vector<float> &sortedValues)
-{
-    FieldTransform result;
-    result.name = _name;
-    result.type = Log;
-    result.logScale = 1.0f;
-    result.logOffset = 500.0f;
-
-    result.minValue = clampedLog(FCSUtil::getQuartile(sortedValues, 0.02f), result.logOffset, result.logScale);
-    //result.minValue = 0.0f;
-    result.maxValue = clampedLog(FCSUtil::getQuartile(sortedValues, 0.98f), result.logOffset, result.logScale);
-
-    cout << "log range: (" << result.minValue << ", " << result.maxValue << ")" << endl;
-
-    //result.maxValue = clampedLog(getQuartile(sortedValues, 0.99f), result.logOffset, result.logScale);
-
-    return result;
-}
-
-FieldTransform FieldTransform::createLogQuartile(const string &_name, const vector<float> &sortedValues)
-{
-    FieldTransform result;
-    result.name = _name;
-    result.type = LogQuartile;
-    result.logScale = 1.0f;
-    result.logOffset = 1.0f;
-
-    float smallValue = FCSUtil::getQuartile(sortedValues, 0.01f);
-    if (smallValue < 0.0f)
-        result.logOffset = -smallValue;
-
-    vector<float> logValues;
-    for (float f : sortedValues)
-        logValues.push_back(clampedLog(f, result.logOffset, result.logScale));
-
-    result.quartile = QuartileRemap::makeFromValues(logValues, 2);
-    return result;
-}
-
-float FieldTransform::transform(float inputValue) const
-{
-    if (type == Linear)
+    if (!util::fileExists(quartileCacheFile))
     {
-        return math::linearMap(minValue, maxValue, 0.0f, 1.0f, inputValue);
+        cout << "Making quartiles..." << endl;
+        fieldNames = file.fieldNames;
+
+        //quartileSingleCluster
+        vector<FeatureDescription> descriptionsSingle, descriptionsAll;
+
+        const int randomGraphs = 64;
+        int clusterIndex = 0;
+
+        for (int graphIndex = 0; graphIndex < randomGraphs; graphIndex++)
+        {
+            int axisA = 0;
+            int axisB = 0;
+            while (!axesValid(fieldNames[axisA], fieldNames[axisB]))
+            {
+                axisA = rand() % file.fieldNames.size();
+                axisB = rand() % file.fieldNames.size();
+            }
+
+            descriptionsSingle.push_back(FeatureDescription(FeatureCondition::Stim, axisA, axisB, clusterIndex));
+            descriptionsAll.push_back(FeatureDescription(FeatureCondition::Stim, axisA, axisB, clusterCount));
+
+            descriptionsSingle.push_back(FeatureDescription(FeatureCondition::Unstim, axisA, axisB, clusterIndex));
+            descriptionsAll.push_back(FeatureDescription(FeatureCondition::Unstim, axisA, axisB, clusterCount));
+
+            clusterIndex = (clusterIndex + 1) % clustering.clusters.size();
+        }
+
+        quartileSingleCluster = FCSFeatures::makeQuartiles(*this, file, file, constants::imageSize, descriptionsSingle);
+        quartileAllClusters = FCSFeatures::makeQuartiles(*this, file, file, constants::imageSize, descriptionsAll);
+
+        util::serializeToFile(quartileCacheFile, quartileSingleCluster, quartileAllClusters);
     }
-    if (type == Log)
-    {
-        float value = clampedLog(inputValue, logOffset, logScale);
-        return math::linearMap(minValue, maxValue, 0.0f, 1.0f, value);
-    }
-    if (type == LogQuartile)
-    {
-        float logValue = clampedLog(inputValue, logOffset, logScale);
-        return quartile.transform(logValue);
-    }
-    return 0.0f;
+
+    cout << "Loading quartiles from " << quartileCacheFile << endl;
+    util::deserializeFromFile(quartileCacheFile, quartileSingleCluster, quartileAllClusters);
+
+    cout << "Single cluster quartiles:" << endl << endl;
+    quartileSingleCluster.print();
+
+    cout << "All clusters quartiles:" << endl;
+    quartileAllClusters.print();
 }
 
-void FCSProcessor::makeClustering(FCSFile &file, int clusterCount, const string &clusterCacheFile)
+void FCSProcessor::makeClustering(FCSFile &file, int _clusterCount, const string &clusterCacheFile)
 {
+    clusterCount = _clusterCount;
+
     file.checkAndFixTransformedValues();
     if (!util::fileExists(clusterCacheFile))
     {
@@ -88,6 +62,21 @@ void FCSProcessor::makeClustering(FCSFile &file, int clusterCount, const string 
     }
     cout << "Loading " << clusterCacheFile << endl;
     clustering.load(clusterCacheFile);
+}
+
+void FCSProcessor::assignClusters(FCSFile &file) const
+{
+    if (file.sampleClusterIndices.size() != 0 || file.transformedSamples.size() == 0)
+    {
+        cout << "Skipping cluster assignment" << endl;
+        return;
+    }
+
+    file.sampleClusterIndices.resize(file.sampleCount);
+    for (int i = 0; i < file.sampleCount; i++)
+    {
+        file.sampleClusterIndices[i] = clustering.getClusterIndex(file.transformedSamples[i]);
+    }
 }
 
 void FCSProcessor::transform(FCSFile &file) const
@@ -170,6 +159,7 @@ void FCSProcessor::saveFeatures(FCSFile &file, const string &outFilename) const
 
     const int imageSize = 32;
     transform(file);
+    assignClusters(file);
     for (int axisA = 0; axisA < file.dim; axisA++)
         for (int axisB = 0; axisB < file.dim; axisB++)
         {
@@ -180,7 +170,7 @@ void FCSProcessor::saveFeatures(FCSFile &file, const string &outFilename) const
                 allFeatures.push_back(FCSFeatures());
                 FCSFeatures &features = allFeatures.back();
                 QuartileRemap quartile;
-                features.create(file, *this, axisA, axisB, imageSize, quartile);
+                //features.create(file, *this, axisA, axisB, imageSize, quartile);
                 //features.save(featureFilename);
                 //features.saveDebugViz(outDir);
 
@@ -198,6 +188,14 @@ void FCSProcessor::saveFeatures(FCSFile &file, const string &outFilename) const
     BinaryDataStreamZLibFile out(outFilename, true);
     out << allFeatures;
     out.closeStream();
+}
+
+const QuartileRemap& FCSProcessor::getQuartileRemap(const FeatureDescription &desc) const
+{
+    if (desc.clusterIndex == clustering.clusters.size())
+        return quartileAllClusters;
+    else
+        return quartileSingleCluster;
 }
 
 /*float FCSPerturbationGenerator::avgMatchDist(const FCSClustering &clusteringA, const FCSClustering &clusteringB)

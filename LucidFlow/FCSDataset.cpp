@@ -85,6 +85,7 @@ void FCSDataset::makeResampledFile(const string &resampledFilename, const int ma
     random_shuffle(allFiles.begin(), allFiles.end());
     if (allFiles.size() > maxFileCount)
         allFiles.resize(maxFileCount);
+
     FCSUtil::makeResampledFile(allFiles, samplesPerFile, resampledPath);
 }
 
@@ -93,10 +94,27 @@ void FCSDataset::initProcessor(const string &resampledFilename, int clusterCount
     resampledFile.loadBinary(baseDir + resampledFilename);
 
     processor.makeTransforms(resampledFile);
+
     processor.transform(resampledFile);
+
+    /*for (int i = 0; i < resampledFile.dim; i++)
+    {
+        cout << "data: " << resampledFile.data(100000, i) << endl;
+        cout << "tran: " << resampledFile.transformedSamples[100000][i] << endl;
+    }*/
 
     const string clusterFilename = baseDir + util::removeExtensions(resampledFilename) + "_" + to_string(clusterCount) + ".clusters";
     processor.makeClustering(resampledFile, clusterCount, clusterFilename);
+
+    processor.assignClusters(resampledFile);
+
+    const string quartileFilename = util::replace(clusterFilename, ".clusters", ".quartiles");
+    processor.makeQuartiles(resampledFile, quartileFilename);
+}
+
+string FCSDataset::describeAxis(int axisIndex) const
+{
+    return resampledFile.fieldNames[axisIndex] + " (" + to_string(axisIndex) + ")";
 }
 
 void FCSDataset::makeFeatures()
@@ -138,7 +156,7 @@ void FCSDataset::makeFeatures()
         in >> allFeatures;
         in.closeStream();
 
-        for (const FCSFeatures &f : allFeatures)
+        /*for (const FCSFeatures &f : allFeatures)
         {
             FCSFeatures *newF = new FCSFeatures();
             newF->axisA = f.axisA;
@@ -148,74 +166,100 @@ void FCSDataset::makeFeatures()
             newF->features = std::move(f.features);
 #pragma omp critical
             featureDatabase.addEntry(newF);
-        }
+        }*/
     }
 }
 
 void FCSDataset::evaluateFeatureSplits()
 {
+    /*for (int i = 0; i < (int)FeatureConditionCount; i++)
+    {
+        evaluateFeatureSplits((FeatureCondition)i);
+    }*/
+}
+
+void FCSDataset::evaluateFeatureSplits(FeatureCondition condition)
+{
+    /*const string evalDir = baseDir + "featureEval" + to_string(condition) + "/";
+    util::makeDirectory(evalDir);
+
     cout << "Evaluating all feature splits" << endl;
     const string fcsFile0 = entries[0].fileUnstim;
 
     int dim = resampledFile.dim;
     Grid2d bestSplitValue(dim, dim, 0.0f);
+
+#pragma omp parallel for schedule(dynamic,1) num_threads(7)
     for (int axisA = 0; axisA < dim; axisA++)
         for (int axisB = 0; axisB < dim; axisB++)
         {
-            const string axesString = to_string(axisA) + "_" + to_string(axisB);
-            const string featureFilename = baseDir + "features/" + fcsFile0 + "/" + axesString + ".dat";
-            if (util::fileExists(featureFilename))
+            if (processor.axesValid(resampledFile.fieldNames[axisA], resampledFile.fieldNames[axisB]))
             {
-                SplitResult bestSplit = evaluateFeatureSplits(axisA, axisB, baseDir + "featureEval/" + axesString + "/");
+                const string axesString = to_string(axisA) + "_" + to_string(axisB);
+                SplitResult bestSplit = evaluateFeatureSplits(axisA, axisB, evalDir + axesString + "/", condition);
                 bestSplitValue(axisA, axisB) = bestSplit.informationGain;
             }
         }
 
-    ofstream file(baseDir + "allFeaturePairs.csv");
+    ofstream file(baseDir + "allFeaturePairs" + to_string(condition) + ".csv");
     for (int axisA = 0; axisA < dim; axisA++)
-        file << "," << axisA;
+        file << "," << describeAxis(axisA);
     file << endl;
 
     for (int axisA = 0; axisA < dim; axisA++)
     {
-        file << axisA;
+        file << describeAxis(axisA);
         for (int axisB = 0; axisB < dim; axisB++)
         {
             file << "," << bestSplitValue(axisA, axisB);
         }
         file << endl;
-    }
+    }*/
 }
 
-SplitResult FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string &outDir)
+SplitResult FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string &outDir, FeatureCondition condition)
 {
     util::makeDirectory(outDir);
     cout << "Making feature split for " << axisA << "," << axisB << endl;
 
     const int entryCount = (int)entries.size();
-    vector<FCSFeatures> allFeatures(entryCount);
+    vector<const FCSFeatures*> featureListUnstim;
+    vector<const FCSFeatures*> featureListStim;
     for (int entryIndex = 0; entryIndex < entryCount; entryIndex++)
     {
         auto &e = entries[entryIndex];
-        const string &featureFilename = baseDir + "features/" + e.fileUnstim + "/" + to_string(axisA) + "_" + to_string(axisB) + ".dat";
-        allFeatures[entryIndex].load(featureFilename);
+        
+        const FCSFeatures *fUnstim = featureDatabase.getFeatures(e.fileUnstim, axisA, axisB);
+        featureListUnstim.push_back(fUnstim);
+
+        const FCSFeatures *fStim = featureDatabase.getFeatures(e.fileStim, axisA, axisB);
+        featureListStim.push_back(fStim);
     }
 
     SplitResult bestOverallSplit;
     vector<SplitEntry> bestEntries;
     vec3i bestCoord;
 
-    const int imageSize = (int)allFeatures[0].features.getDimX();
-    const int clusterCount = (int)allFeatures[0].features.getDimZ();
+    auto computeFeature = [&](int entryIndex, int x, int y, int clusterIndex)
+    {
+        if (condition == FeatureCondition::Stim)
+            return (int)featureListUnstim[entryIndex]->features(x, y, clusterIndex);
+        if (condition == FeatureCondition::Unstim)
+            return (int)featureListStim[entryIndex]->features(x, y, clusterIndex);
+        return 0;
+    };
+
+    const int imageSize = (int)featureListUnstim[0]->features.getDimX();
+    const int clusterCount = (int)featureListUnstim[0]->features.getDimZ();
     for (int clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++)
     {
-        Bitmap bmp(imageSize, imageSize);
-        for (auto &p : bmp)
+        Grid2f informationGain(imageSize, imageSize);
+        for (auto &p : informationGain)
         {
             vector<SplitEntry> sortedEntries(entryCount);
             for (int entryIndex = 0; entryIndex < entryCount; entryIndex++)
             {
-                sortedEntries[entryIndex] = SplitEntry(allFeatures[entryIndex].features(p.x, p.y, clusterIndex), entries[entryIndex].label);
+                sortedEntries[entryIndex] = SplitEntry(computeFeature(entryIndex, (int)p.x, (int)p.y, clusterIndex), entries[entryIndex].label);
             }
             sort(sortedEntries.begin(), sortedEntries.end());
 
@@ -228,11 +272,15 @@ SplitResult FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string
                 bestCoord = vec3i((int)p.x, (int)p.y, clusterIndex);
             }
 
-            BYTE value = util::boundToByte(bestSplit.informationGain / 0.0002f);
-            p.value = vec4uc(value, value, value, 255);
+            informationGain(p.x, p.y) = (float)bestSplit.informationGain;
             //cout << p.x << "," << p.y << "," << clusterIndex << " = " << bestSplit.informationGain << endl;
         }
+        
+        const Bitmap bmp = FCSVisualizer::gridToBmp(informationGain, 1.0f / 0.0004f);
         LodePNG::save(bmp, outDir + to_string(axisA) + "_" + to_string(axisB) + "_c" + to_string(clusterIndex) + ".png");
+
+#pragma omp critical
+        featureQualityDatabase.addEntry(condition, axisA, axisB, clusterIndex, informationGain);
     }
 
     ofstream file(outDir + "bestSplit.csv");
@@ -246,4 +294,89 @@ SplitResult FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string
         file << entry.splitValue << "," << entry.state << endl;
     }
     return bestOverallSplit;
+}
+
+const FCSDataset::Entry& FCSDataset::sampleRandomEntry(int label) const
+{
+    while (true)
+    {
+        auto &e = util::randomElement(entries);
+        if (e.label == label)
+            return e;
+    }
+}
+
+Bitmap FCSDataset::makeFeatureViz(const FCSDataset::Entry &entry, FeatureCondition condition, int axisA, int axisB, int clusterIndex) const
+{
+    const FCSFeatures *fUnstim = featureDatabase.getFeatures(entry.fileUnstim, axisA, axisB);
+    const FCSFeatures *fStim = featureDatabase.getFeatures(entry.fileStim, axisA, axisB);
+    
+    if (condition == FeatureCondition::Stim)
+        return fStim->getChannel(clusterIndex);
+
+    if (condition == FeatureCondition::Unstim)
+        return fUnstim->getChannel(clusterIndex);
+
+    const Bitmap bmpStim = fStim->getChannel(clusterIndex);
+    const Bitmap bmpUnstim = fUnstim->getChannel(clusterIndex);
+    Bitmap result = bmpStim;
+    for (auto &p : result)
+    {
+        double valueF = (double)bmpStim(p.x, p.y).r - (double)bmpUnstim(p.x, p.y).r;
+        BYTE valueC = util::boundToByte((valueF + 255.0) * 0.5);
+        p.value = vec4uc(valueC, valueC, valueC, 255);
+    }
+    return result;
+}
+
+void FCSDataset::saveFeatureDescription(const vector<const FeatureQualityDatabase::Entry*> &features, const string &filename) const
+{
+    /*ofstream descFile(filename);
+    descFile << "Total features:," << features.size() << endl;
+    descFile << "index,condition,AxisA,AxisB,cluster,score" << endl;
+
+    int featureIndex = 0;
+    for (auto &e : features)
+    {
+        descFile << featureIndex << ",";
+        descFile << e->condition << ",";
+        descFile << describeAxis(e->axisA) << ",";
+        descFile << describeAxis(e->axisB) << ",";
+        descFile << e->clusterIndex << ",";
+        descFile << e->score << endl;
+        featureIndex++;
+    }*/
+}
+
+void FCSDataset::chooseAndVizFeatures(int totalFeatures, int maxInstancesPerGraph, int samplesPerFeature, const string &outDir)
+{
+    /*util::makeDirectory(outDir);
+
+    selectedFeatures = featureQualityDatabase.selectBestFeatures(totalFeatures, maxInstancesPerGraph);
+    featureQualityDatabase.sortEntries();
+
+    saveFeatureDescription(selectedFeatures, outDir + "selectedFeatures.csv");
+    saveFeatureDescription(featureQualityDatabase.entries, outDir + "allFeatures.csv");
+
+    int featureIndex = 0;
+    for (auto &e : selectedFeatures)
+    {
+        const Bitmap bmp = FCSVisualizer::gridToBmp(e->informationGain, 1.0f / 0.0002f);
+        LodePNG::save(bmp, outDir + "f" + to_string(featureIndex) + "_cond" + to_string(e->condition) + "_" +
+                                    to_string(e->axisA) + "_" +
+                                    to_string(e->axisB) + "_c" +
+                                    to_string(e->clusterIndex) + ".png");
+
+        for (int sample = 0; sample < samplesPerFeature; sample++)
+        {
+            const Entry &e0 = sampleRandomEntry(0);
+            const Entry &e1 = sampleRandomEntry(1);
+            const Bitmap bmp0 = makeFeatureViz(e0, e->condition, e->axisA, e->axisB, e->clusterIndex);
+            const Bitmap bmp1 = makeFeatureViz(e1, e->condition, e->axisA, e->axisB, e->clusterIndex);
+
+            LodePNG::save(bmp0, outDir + "f" + to_string(featureIndex) + "_status0_" + to_string(sample) + ".png");
+            LodePNG::save(bmp1, outDir + "f" + to_string(featureIndex) + "_status1_" + to_string(sample) + ".png");
+        }
+        featureIndex++;
+    }*/
 }

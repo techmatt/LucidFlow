@@ -1,119 +1,109 @@
 
 #include "main.h"
 
-void FCSFeatures::create(const FCSFile &file, const FCSProcessor &processor, int _axisA, int _axisB, int imageSize, const QuartileRemap &params)
+Grid3i FCSFeatures::makeCounts(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, const vector<FeatureDescription> &descriptions)
 {
-    fcsID = file.id;
-    axisA = _axisA;
-    axisB = _axisB;
-
-    const int clusterCount = (int)processor.clustering.clusters.size();
-    //cout << "Cluster count: " << clusterCount << endl;
-    features.allocate(imageSize, imageSize, clusterCount + 1, 0);
-
-    /*for (int clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++)
-    {
-        const Bitmap bmp = FCSVisualizer::visualizeDensity(file, processor, axisA, axisB, imageSize, clusterIndex, params);
-        setChannel(bmp, clusterIndex);
-    }
-
-    const Bitmap bmpAll = FCSVisualizer::visualizeDensity(file, processor, axisA, axisB, imageSize, -1, params);
-    setChannel(bmpAll, clusterCount);*/
-
-    Grid3i cellCounts(imageSize, imageSize, clusterCount, 0);
-    const int borderSize = 1;
+    const int featureCount = (int)descriptions.size();
     
-    clusterHits = vector<int>(clusterCount, 0);
+    Grid3i cellCounts(imageSize, imageSize, featureCount, 0);
+    const int borderSize = 1;
 
-    for (int i = 0; i < constants::samplesPerFeatureSet; i++)
+    auto addSamples = [&](const FCSFile &file, FeatureCondition condition)
     {
-        const int randomSampleIndex = util::randomInteger(0, (int)file.transformedSamples.size() - 1);
-        const MathVectorf &sample = file.transformedSamples[randomSampleIndex];
-        
-        const int clusterIndex = processor.clustering.getClusterIndex(sample);
-        clusterHits[clusterIndex]++;
+        map< int, vector<int> > clusterIndexToFeatures;
+        for (auto &d : iterate(descriptions))
+            if (d.value.condition == condition)
+            {
+                if (d.value.clusterIndex == processor.clusterCount)
+                {
+                    for (int clusterIndex = 0; clusterIndex < processor.clusterCount; clusterIndex++)
+                        clusterIndexToFeatures[clusterIndex].push_back((int)d.index);
+                }
+                else
+                    clusterIndexToFeatures[d.value.clusterIndex].push_back((int)d.index);
+            }
 
-        vec2f v;
-        v.x = sample[axisA];
-        v.y = 1.0f - sample[axisB];
-
-        //if (v.x < 0.0f || v.y < 0.0f || v.x > 1.0f || v.y > 1.0f) cout << "bounds: " << v << endl;
-
-        const vec3i coord(math::round(v * (float)imageSize), clusterIndex);
-        if (cellCounts.isValidCoordinate(coord) &&
-            coord.x >= borderSize && coord.x < imageSize - borderSize &&
-            coord.y >= borderSize && coord.y < imageSize - borderSize)
+        for (int i = 0; i < constants::samplesPerFeatureSet; i++)
         {
-            cellCounts(coord)++;
+            const int randomSampleIndex = util::randomInteger(0, (int)file.transformedSamples.size() - 1);
+            const MathVectorf &sample = file.transformedSamples[randomSampleIndex];
+            const int clusterIndex = file.sampleClusterIndices[randomSampleIndex];
+
+            for (int featureIndex : clusterIndexToFeatures[clusterIndex])
+            {
+                const FeatureDescription &desc = descriptions[featureIndex];
+                vec2f v;
+                v.x = sample[desc.axisA];
+                v.y = 1.0f - sample[desc.axisB];
+
+                //if (v.x < 0.0f || v.y < 0.0f || v.x > 1.0f || v.y > 1.0f) cout << "bounds: " << v << endl;
+
+                const vec3i coord(math::round(v * (float)imageSize), featureIndex);
+                if (cellCounts.isValidCoordinate(coord) &&
+                    coord.x >= borderSize && coord.x < imageSize - borderSize &&
+                    coord.y >= borderSize && coord.y < imageSize - borderSize)
+                {
+                    cellCounts(coord)++;
+                }
+            }
         }
+    };
+
+    addSamples(fileUnstim, FeatureCondition::Unstim);
+    addSamples(fileStim, FeatureCondition::Stim);
+
+    return cellCounts;
+}
+
+void FCSFeatures::create(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, int axisA, int axisB)
+{
+    descriptions.clear();
+    const int clusterCount = (int)processor.clustering.clusters.size();
+    for (int clusterIndex = 0; clusterIndex <= clusterCount; clusterIndex++)
+    {
+        descriptions.push_back(FeatureDescription(FeatureCondition::Unstim, axisA, axisB, clusterIndex));
+        descriptions.push_back(FeatureDescription(FeatureCondition::Stim, axisA, axisB, clusterIndex));
     }
 
-    QuartileRemap paramsFinal = params;
-    if (params.quartiles.size() == 0)
+    const Grid3i counts = makeCounts(processor, fileUnstim, fileStim, imageSize, descriptions);
+
+    vector<const QuartileRemap*> quartiles;
+    for (auto &desc : descriptions)
+        quartiles.push_back(&processor.getQuartileRemap(desc));
+
+    finalizeFromCounts(counts, quartiles);
+}
+
+void FCSFeatures::create(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, const vector<FeatureDescription> &_descriptions)
+{
+    descriptions = _descriptions;
+
+    const Grid3i counts = makeCounts(processor, fileUnstim, fileStim, imageSize, descriptions);
+
+    vector<const QuartileRemap*> quartiles;
+    for (auto &desc : descriptions)
+        quartiles.push_back(&processor.getQuartileRemap(desc));
+
+    finalizeFromCounts(counts, quartiles);
+}
+
+void FCSFeatures::finalizeFromCounts(const Grid3i &counts, const vector<const QuartileRemap*> &params)
+{
+    features.allocate(counts.getDimensions());
+    for (auto &c : counts)
     {
-        vector<float> nonzeroValues;
-        for (auto &v : cellCounts)
-            if (v.value > 1) nonzeroValues.push_back((float)v.value);
-        std::sort(nonzeroValues.begin(), nonzeroValues.end());
-
-        if (nonzeroValues.size() == 0)
-            nonzeroValues.push_back(1.0f);
-
-        paramsFinal.quartiles.resize(8);
-        paramsFinal.quartiles[0] = 0.0f;
-        paramsFinal.quartiles[1] = nonzeroValues[(int)(nonzeroValues.size() * 0.2f)];
-        paramsFinal.quartiles[2] = nonzeroValues[(int)(nonzeroValues.size() * 0.4f)];
-        paramsFinal.quartiles[3] = nonzeroValues[(int)(nonzeroValues.size() * 0.6f)];
-        paramsFinal.quartiles[4] = nonzeroValues[(int)(nonzeroValues.size() * 0.7f)];
-        paramsFinal.quartiles[5] = nonzeroValues[(int)(nonzeroValues.size() * 0.85f)];
-        paramsFinal.quartiles[6] = nonzeroValues[(int)(nonzeroValues.size() * 0.98f)];
-        paramsFinal.quartiles[7] = nonzeroValues.back();
-        //params.quartiles = { 0.0f, 3.0f, 6.0f, 12.0f, 20.0f, 50.0f, 200.0f, 400.0f };
-        //paramsFinal.print();
-    }
-
-    /*cout << "after" << endl;
-    cin.get();
-    for (auto &v : cellCounts)
-        if (v.value != 0)
-            cout << "value: " << v.x << "," << v.y << "," << v.z << ": " << v.value << endl;*/
-
-    for (auto &c : cellCounts)
-    {
-        //if (c.value != 0)
-        //    cout << "value: " << c.x << "," << c.y << "," << c.z << ": " << int(c.value) << endl;
-        const float intensityF = paramsFinal.transform((float)c.value) * 255.0f;
-        const unsigned char intensityC = util::boundToByte(intensityF);
-        //if (intensityC != 0)
-        //    cout << "value: " << c.x << "," << c.y << "," << c.z << ": " << int(intensityC) << endl;
+        const float intensityF = params[c.z]->transform((float)c.value) * 255.0f;
+        const unsigned char intensityC = util::boundToByte(math::round(intensityF));
         features(c.x, c.y, c.z) = intensityC;
     }
-
-    const Bitmap bmpAll = FCSVisualizer::visualizeDensity(file, processor, axisA, axisB, imageSize, -1, params);
-    setChannel(bmpAll, clusterCount);
 }
 
 void FCSFeatures::saveDebugViz(const string &baseDir) const
 {
-    const string prefix = baseDir + to_string(axisA) + "_" + to_string(axisB) + "_c";
-    
-    /*for (int clusterIndex = 0; clusterIndex < features.getDimZ() - 1; clusterIndex += 20)
+    for (auto &desc : iterate(descriptions))
     {
-        const Bitmap bmp = getChannel(clusterIndex);
-        LodePNG::save(bmp, prefix + to_string(clusterIndex) + ".png");
-    }*/
-
-    const Bitmap bmpAll = getChannel((int)features.getDimZ() - 1);
-    LodePNG::save(bmpAll, prefix + "all.png");
-
-    if (constants::outputClusterHits)
-    {
-        ofstream file(baseDir + "clusterHits" + to_string(axisA) + "_" + to_string(axisB) + ".csv");
-        file << "cluster,hits" << endl;
-        for (int clusterIndex = 0; clusterIndex < clusterHits.size(); clusterIndex++)
-        {
-            file << clusterIndex << "," << clusterHits[clusterIndex] << endl;
-        }
+        const Bitmap bmp = getChannel((int)desc.index);
+        LodePNG::save(bmp, baseDir + desc.value.toString() + ".png");
     }
 }
 
@@ -136,18 +126,42 @@ Bitmap FCSFeatures::getChannel(int channel) const
     return result;
 }
 
-void FCSFeatures::save(const string &filename) const
+QuartileRemap FCSFeatures::makeQuartiles(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, const vector<FeatureDescription> &descriptions)
 {
-    BinaryDataStreamFile out(filename, true);
-    out << axisA << axisB << clusterHits;
-    out.writePrimitive(features);
-    out.closeStream();
-}
+    const Grid3i counts = makeCounts(processor, fileUnstim, fileStim, imageSize, descriptions);
+    
+    vector<float> nonzeroValues;
+    for (auto &v : counts)
+        if (v.value > 2) nonzeroValues.push_back((float)v.value);
+    std::sort(nonzeroValues.begin(), nonzeroValues.end());
 
-void FCSFeatures::load(const string &filename)
-{
-    BinaryDataStreamFile out(filename, false);
-    out >> axisA >> axisB >> clusterHits;
-    out.readPrimitive(features);
-    out.closeStream();
+    if (nonzeroValues.size() == 0)
+        nonzeroValues.push_back(1.0f);
+
+    QuartileRemap result;
+
+    const float maxValue = (float)nonzeroValues.back();
+    if (maxValue <= 255.0f)
+    {
+        cout << "Dynamic range is only " << maxValue << ". Defaulting to trivial scaling." << endl;
+        result.quartiles.resize(2);
+        result.quartiles[0] = 0;
+        result.quartiles[1] = maxValue;
+        return result;
+    }
+
+    result.quartiles.resize(8);
+    result.quartiles[0] = 0.0f;
+    result.quartiles[1] = nonzeroValues[(int)(nonzeroValues.size() * 0.2)];
+    result.quartiles[2] = nonzeroValues[(int)(nonzeroValues.size() * 0.4)];
+    result.quartiles[3] = nonzeroValues[(int)(nonzeroValues.size() * 0.6)];
+    result.quartiles[4] = nonzeroValues[(int)(nonzeroValues.size() * 0.7)];
+    result.quartiles[5] = nonzeroValues[(int)(nonzeroValues.size() * 0.85)];
+    result.quartiles[6] = nonzeroValues[(int)(nonzeroValues.size() * 0.98)];
+    result.quartiles[7] = nonzeroValues[(int)(nonzeroValues.size() * 0.9999)];
+
+    //params.quartiles = { 0.0f, 3.0f, 6.0f, 12.0f, 20.0f, 50.0f, 200.0f, 400.0f };
+    //result.print();
+
+    return result;
 }

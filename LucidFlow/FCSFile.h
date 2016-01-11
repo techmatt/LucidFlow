@@ -73,6 +73,6 @@ struct FCSFile
     //
     // These are computed as needed
     //
-    vector< MathVectorf > transformedSamples;
-    FCSClustering localClustering;
+    vector<MathVectorf> transformedSamples;
+    vector<int> sampleClusterIndices;
 };

@@ -54,6 +54,7 @@ void FCSUtil::makeResampledFile(const vector<string> &fileList, int samplesPerFi
     FCSFile result;
     result.sampleCount = samplesPerFile * (int)fileList.size();
 
+    int totalSampleIndex = 0;
     for (auto &filenameIn : fileList)
     {
         FCSFile file;
@@ -69,10 +70,13 @@ void FCSUtil::makeResampledFile(const vector<string> &fileList, int samplesPerFi
             const int sample = util::randomInteger(0, file.sampleCount - 1);
             for (int j = 0; j < result.dim; j++)
             {
-                result.data(i, j) = file.data(sample, j);
+                result.data(totalSampleIndex, j) = file.data(sample, j);
             }
+            totalSampleIndex++;
         }
     }
+
+    cout << "Saved " << filenameOut << ", total samples: " << totalSampleIndex << endl;
     result.saveBinary(filenameOut);
 }
 
@@ -134,4 +138,80 @@ SplitResult FCSUtil::findBestSplit(const vector<SplitEntry> &sortedEntries)
         }
     }
     return result;
+}
+
+float FieldTransform::clampedLog(float x, float offset, float scale)
+{
+    x += offset;
+    if (x <= 1.0f)
+        return 0.0f;
+    return log(x) * scale;
+}
+
+FieldTransform FieldTransform::createLinear(const string &_name, const vector<float> &sortedValues)
+{
+    FieldTransform result;
+    result.name = _name;
+    result.type = Type::Linear;
+    result.minValue = sortedValues.front();
+    result.maxValue = sortedValues.back();
+    return result;
+}
+
+FieldTransform FieldTransform::createLog(const string &_name, const vector<float> &sortedValues)
+{
+    FieldTransform result;
+    result.name = _name;
+    result.type = Type::Log;
+    result.logScale = 1.0f;
+    result.logOffset = 500.0f;
+
+    result.minValue = clampedLog(FCSUtil::getQuartile(sortedValues, 0.02f), result.logOffset, result.logScale);
+    //result.minValue = 0.0f;
+    result.maxValue = clampedLog(FCSUtil::getQuartile(sortedValues, 0.98f), result.logOffset, result.logScale);
+
+    cout << "log range: (" << result.minValue << ", " << result.maxValue << ")" << endl;
+
+    //result.maxValue = clampedLog(getQuartile(sortedValues, 0.99f), result.logOffset, result.logScale);
+
+    return result;
+}
+
+FieldTransform FieldTransform::createLogQuartile(const string &_name, const vector<float> &sortedValues)
+{
+    FieldTransform result;
+    result.name = _name;
+    result.type = Type::LogQuartile;
+    result.logScale = 1.0f;
+    result.logOffset = 1.0f;
+
+    float smallValue = FCSUtil::getQuartile(sortedValues, 0.01f);
+    if (smallValue < 0.0f)
+        result.logOffset = -smallValue;
+
+    vector<float> logValues;
+    for (float f : sortedValues)
+        logValues.push_back(clampedLog(f, result.logOffset, result.logScale));
+
+    result.quartile = QuartileRemap::makeFromValues(logValues, 2);
+    return result;
+}
+
+float FieldTransform::transform(float inputValue) const
+{
+    if (type == Type::Linear)
+    {
+        return math::linearMap(minValue, maxValue, 0.0f, 1.0f, inputValue);
+    }
+    if (type == Type::Log)
+    {
+        float value = clampedLog(inputValue, logOffset, logScale);
+        return math::linearMap(minValue, maxValue, 0.0f, 1.0f, value);
+    }
+    if (type == Type::LogQuartile)
+    {
+        float logValue = clampedLog(inputValue, logOffset, logScale);
+        return quartile.transform(logValue);
+    }
+    return 0.0f;
 }

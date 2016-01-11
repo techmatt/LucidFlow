@@ -1,4 +1,31 @@
 
+enum class FeatureCondition
+{
+    Stim,
+    Unstim,
+    Count
+};
+
+struct FeatureDescription : BinaryDataSerialize<FeatureDescription>
+{
+    FeatureDescription() {}
+    FeatureDescription(FeatureCondition _condition, int _axisA, int _axisB, int _clusterIndex)
+    {
+        condition = _condition;
+        axisA = _axisA;
+        axisB = _axisB;
+        clusterIndex = _clusterIndex;
+    }
+    string toString() const
+    {
+        return "cond" + to_string((int)condition) + "_" + to_string(axisA) + "_" + to_string(axisB) + "_c" + to_string(clusterIndex);
+    }
+    FeatureCondition condition;
+    int axisA;
+    int axisB;
+    int clusterIndex;
+};
+
 struct QuartileRemap
 {
     static QuartileRemap makeFromValues(const vector<float> &values, int quartileCount)
@@ -42,8 +69,22 @@ struct QuartileRemap
         const float span = 1.0f / (float)(quartiles.size() - 1);
         return math::linearMap(quartiles[lowQuartile], quartiles[highQuartile], lowQuartile * span, highQuartile * span, value);
     }
+
     vector<float> quartiles;
 };
+
+template<class BinaryDataBuffer, class BinaryDataCompressor>
+inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator<<(BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& s, const QuartileRemap &c) {
+    s << c.quartiles;
+    return s;
+}
+
+template<class BinaryDataBuffer, class BinaryDataCompressor>
+inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator>>(BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& s, QuartileRemap &c) {
+    s >> c.quartiles;
+    return s;
+}
+
 
 struct SpilloverMatrix
 {
@@ -78,6 +119,38 @@ struct SplitResult
     }
     int splitValue;
     double informationGain;
+};
+
+//! maps an input value to [0, 1]
+struct FieldTransform
+{
+    enum class Type
+    {
+        Linear,
+        Log,
+        LogQuartile,
+    };
+
+    static FieldTransform createLinear(const string &_name, const vector<float> &sortedValues);
+    static FieldTransform createLog(const string &_name, const vector<float> &sortedValues);
+    static FieldTransform createLogQuartile(const string &_name, const vector<float> &sortedValues);
+
+    float transform(float inputValue) const;
+
+    Type type;
+
+    float minValue;
+    float maxValue;
+
+    float logOffset;
+    float logScale;
+
+    QuartileRemap quartile;
+
+    string name;
+
+private:
+    static float clampedLog(float x, float offset, float scale);
 };
 
 struct FCSUtil

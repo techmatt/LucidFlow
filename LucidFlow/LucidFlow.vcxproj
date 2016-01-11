@@ -92,6 +92,7 @@
     <ClInclude Include="FCSProcessor.h" />
     <ClInclude Include="FCSUtil.h" />
     <ClInclude Include="FCSVisualizer.h" />
+    <ClInclude Include="LevelDBExporter.h" />
     <ClInclude Include="main.h" />
   </ItemGroup>
   <ItemGroup>
@@ -101,6 +102,7 @@
     <ClCompile Include="FCSProcessor.cpp" />
     <ClCompile Include="FCSUtil.cpp" />
     <ClCompile Include="FCSVisualizer.cpp" />
+    <ClCompile Include="LevelDBExporter.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mLibSource.cpp" />
   </ItemGroup>

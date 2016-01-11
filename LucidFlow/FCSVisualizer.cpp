@@ -94,3 +94,15 @@ void FCSVisualizer::saveAllAxesViz(const FCSFile &file, const FCSProcessor &proc
         LodePNG::save(image, outDir + imageFilename);
     }
 }
+
+Bitmap FCSVisualizer::gridToBmp(const Grid2f &g, float scale)
+{
+    Bitmap bmp((int)g.getDimX(), (int)g.getDimY());
+    for (auto &p : bmp)
+    {
+        const float valueF = g(p.x, p.y) * scale;
+        BYTE valueB = util::boundToByte(valueF);
+        p.value = vec4uc(valueB, valueB, valueB, 255);
+    }
+    return bmp;
+}
