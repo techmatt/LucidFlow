@@ -131,6 +131,10 @@ struct FCSDataset
 {
     struct Entry
     {
+        string patientID() const
+        {
+            return util::removeExtensions(fileUnstim) + "_" + util::removeExtensions(fileStim);
+        }
         string fileStim, fileUnstim;
         int status;
         int survivalTime;

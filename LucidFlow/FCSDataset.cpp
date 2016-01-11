@@ -120,16 +120,12 @@ string FCSDataset::describeAxis(int axisIndex) const
 void FCSDataset::makeFeatures()
 {
     util::makeDirectory(baseDir + "features");
-    auto allFiles = Directory::enumerateFilesWithPath(baseDir + "DAT\\", ".dat");
-
-    FCSFile sampleFile;
-    sampleFile.loadBinary(allFiles.front());
-
+    
 #pragma omp parallel for schedule(dynamic,1) num_threads(7)
-    for (int fileIndex = 0; fileIndex < allFiles.size(); fileIndex++)
+    for (int entryIndex = 0; entryIndex < entries.size(); entryIndex++)
     {
-        const string &fcsFilename = allFiles[fileIndex];
-        const string &featureFilename = baseDir + "features/" + util::removeExtensions(util::fileNameFromPath(fcsFilename)) + ".feat";
+        const auto &e = entries[entryIndex];
+        const string featureFilename = baseDir + "features/" + e.patientID() + ".feat";
 
         if (util::fileExists(featureFilename))
         {
@@ -138,35 +134,35 @@ void FCSDataset::makeFeatures()
         }
 
         cout << "Creating " << featureFilename << endl;
-        FCSFile fcsFile;
-        fcsFile.loadBinary(fcsFilename);
-        processor.saveFeatures(fcsFile, featureFilename);
+        
+        FCSFile fileUnstim, fileStim;
+        fileUnstim.loadBinary(baseDir + "DAT/" + util::removeExtensions(e.fileUnstim) + ".dat");
+        fileStim.loadBinary  (baseDir + "DAT/" + util::removeExtensions(e.fileStim  ) + ".dat");
+
+        processor.saveFeatures(fileUnstim, fileStim, featureFilename);
     }
 
 #pragma omp parallel for schedule(dynamic,1) num_threads(7)
-    for (int fileIndex = 0; fileIndex < allFiles.size(); fileIndex++)
+    for (int entryIndex = 0; entryIndex < entries.size(); entryIndex++)
     {
-        const string &fcsFilename = allFiles[fileIndex];
-        const string &featureFilename = baseDir + "features/" + util::removeExtensions(util::fileNameFromPath(fcsFilename)) + ".feat";
+        const auto &e = entries[entryIndex];
+        const string featureFilename = baseDir + "features/" + e.patientID() + ".feat";
 
         vector<FCSFeatures> allFeatures;
         cout << "Loading " << featureFilename << endl;
-        //BinaryDataStreamFile in(featureFilename, false);
+        
         BinaryDataStreamZLibFile in(featureFilename, false);
         in >> allFeatures;
         in.closeStream();
 
-        /*for (const FCSFeatures &f : allFeatures)
+        for (FCSFeatures &f : allFeatures)
         {
             FCSFeatures *newF = new FCSFeatures();
-            newF->axisA = f.axisA;
-            newF->axisB = f.axisB;
-            newF->fcsID = f.fcsID;
-            newF->clusterHits = std::move(f.clusterHits);
+            newF->descriptions = std::move(f.descriptions);
             newF->features = std::move(f.features);
 #pragma omp critical
-            featureDatabase.addEntry(newF);
-        }*/
+            featureDatabase.addEntry(e.patientID(), newF);
+        }
     }
 }
 

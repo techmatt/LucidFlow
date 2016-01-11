@@ -3,11 +3,12 @@
 
 void FCSProcessor::makeQuartiles(FCSFile &file, const string &quartileCacheFile)
 {
+    fieldNames = file.fieldNames;
+
     if (!util::fileExists(quartileCacheFile))
     {
         cout << "Making quartiles..." << endl;
-        fieldNames = file.fieldNames;
-
+        
         //quartileSingleCluster
         vector<FeatureDescription> descriptionsSingle, descriptionsAll;
 
@@ -66,7 +67,7 @@ void FCSProcessor::makeClustering(FCSFile &file, int _clusterCount, const string
 
 void FCSProcessor::assignClusters(FCSFile &file) const
 {
-    if (file.sampleClusterIndices.size() != 0 || file.transformedSamples.size() == 0)
+    if (file.sampleClusterIndices.size() != 0 || file.transformedSamples.size() == 0 || clusterCount == 0)
     {
         cout << "Skipping cluster assignment" << endl;
         return;
@@ -97,6 +98,8 @@ void FCSProcessor::transform(FCSFile &file) const
             v[j] = transforms[j].transform(file.data(i, j));
         }
     }
+
+    assignClusters(file);
 }
 
 void FCSProcessor::makeTransforms(const FCSFile &file)
@@ -146,7 +149,7 @@ bool FCSProcessor::axesValid(const string &axisA, const string &axisB) const
     return false;
 }
 
-void FCSProcessor::saveFeatures(FCSFile &file, const string &outFilename) const
+void FCSProcessor::saveFeatures(FCSFile &fileUnstim, FCSFile &fileStim, const string &outFilename) const
 {
     if (util::fileExists(outFilename))
     {
@@ -154,37 +157,26 @@ void FCSProcessor::saveFeatures(FCSFile &file, const string &outFilename) const
         return;
     }
 
+    const int dim = fileUnstim.dim;
     vector<FCSFeatures> allFeatures;
-    allFeatures.reserve(file.dim * file.dim);
+    allFeatures.reserve(dim * dim * 2);
 
-    const int imageSize = 32;
-    transform(file);
-    assignClusters(file);
-    for (int axisA = 0; axisA < file.dim; axisA++)
-        for (int axisB = 0; axisB < file.dim; axisB++)
+    transform(fileUnstim);
+    transform(fileStim);
+
+    for (int axisA = 0; axisA < dim; axisA++)
+        for (int axisB = 0; axisB < dim; axisB++)
         {
-            if (axesValid(file.fieldNames[axisA], file.fieldNames[axisB]))
+            if (axesValid(fieldNames[axisA], fieldNames[axisB]))
             {
                 //cout << "Generating " << axisA << "-" << axisB << endl;
                     
                 allFeatures.push_back(FCSFeatures());
                 FCSFeatures &features = allFeatures.back();
-                QuartileRemap quartile;
-                //features.create(file, *this, axisA, axisB, imageSize, quartile);
-                //features.save(featureFilename);
-                //features.saveDebugViz(outDir);
-
-                /*vector<int> clusterHits(clustering.clusters.size(), 0);
-                for (auto &sample : file.transformedSamples)
-                    clusterHits[clustering.getClusterIndex(sample)]++;
-                ofstream clusterHitsFile(outDir + "allClusterHits.csv");
-                clusterHitsFile << "cluster,hits" << endl;
-                for (int clusterIndex = 0; clusterIndex < clusterHits.size(); clusterIndex++)
-                    clusterHitsFile << clusterIndex << "," << clusterHits[clusterIndex] << endl;*/
+                features.create(*this, fileUnstim, fileStim, constants::imageSize, axisA, axisB);
             }
         }
 
-    //BinaryDataStreamFile out(outFilename, true);
     BinaryDataStreamZLibFile out(outFilename, true);
     out << allFeatures;
     out.closeStream();

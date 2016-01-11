@@ -14,9 +14,9 @@ void goB()
     dataset.initProcessor("sampleA.dat", constants::clusterCount);
     //dataset.initProcessor("sampleB.dat", 8);
 
-    /*dataset.makeFeatures();
+    dataset.makeFeatures();
 
-    dataset.evaluateFeatureSplits();
+    /*dataset.evaluateFeatureSplits();
 
     dataset.chooseAndVizFeatures(128, 2, 6, dataset.baseDir + "selectedFeatures/");*/
 }

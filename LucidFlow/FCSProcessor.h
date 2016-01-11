@@ -8,7 +8,7 @@ struct FCSProcessor
     void transform(FCSFile &file) const;
     void assignClusters(FCSFile &file) const;
 
-    void saveFeatures(FCSFile &file, const string &outDir) const;
+    void saveFeatures(FCSFile &fileUnstim, FCSFile &fileStim, const string &outFilename) const;
 
     bool axesValid(const string &axisA, const string &axisB) const;
 
