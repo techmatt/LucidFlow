@@ -39,6 +39,9 @@
     <ClInclude Include="LevelDBExporter.h">
       <Filter>Caffe</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\patient.h">
+      <Filter>FCS</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">

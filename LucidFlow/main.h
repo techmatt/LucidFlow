@@ -14,6 +14,7 @@ typedef ColorImageR8G8B8A8 Bitmap;
 
 #include "constants.h"
 
+#include "../common/patient.h"
 #include "FCSUtil.h"
 #include "FCSFile.h"
 #include "FCSProcessor.h"

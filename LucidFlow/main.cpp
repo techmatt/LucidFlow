@@ -20,8 +20,9 @@ void goB()
 
     dataset.chooseAndVizFeatures(128, 3, 4, dataset.baseDir + "selectedFeatures/");
 
-    LevelDBExporter::exportDB(dataset, dataset.baseDir + "databaseTrain", 2);
-    LevelDBExporter::exportDB(dataset, dataset.baseDir + "databaseTest", 1);
+    const int trainingSplit = math::round(dataset.patients.size() * 0.7);
+    LevelDBExporter::exportDB(dataset, dataset.baseDir + "caffe/databaseTrain", 10, 10, 0, trainingSplit);
+    LevelDBExporter::exportDB(dataset, dataset.baseDir + "caffe/databaseTest", 1, 10, trainingSplit, (int)dataset.patients.size());
 }
 
 void main()

@@ -3,28 +3,28 @@ struct FeatureDatabase
 {
     struct Key
     {
-        string patientID;
+        string ID;
         int axisA;
         int axisB;
     };
 
-    const FCSFeatures* getFeatures(const string &patientID, int axisA, int axisB) const
+    const FCSFeatures* getFeatures(const string &ID, int axisA, int axisB) const
     {
         Key k;
-        k.patientID = patientID;
+        k.ID = ID;
         k.axisA = axisA;
         k.axisB = axisB;
         if (entries.count(k) == 0)
         {
-            cout << "Entry not found: " << patientID << "-" << axisA << "," << axisB << endl;
+            cout << "Entry not found: " << ID << "-" << axisA << "," << axisB << endl;
         }
         return entries.find(k)->second;
     }
 
-    void addEntry(const string &patientID, const FCSFeatures *features)
+    void addEntry(const string &ID, const FCSFeatures *features)
     {
         Key k;
-        k.patientID = patientID;
+        k.ID = ID;
         k.axisA = features->descriptions[0].axisA;
         k.axisB = features->descriptions[0].axisB;
         entries[k] = features;
@@ -35,8 +35,8 @@ struct FeatureDatabase
 
 inline bool operator < (const FeatureDatabase::Key &a, const FeatureDatabase::Key &b)
 {
-    if (a.patientID < b.patientID) return true;
-    if (a.patientID > b.patientID) return false;
+    if (a.ID < b.ID) return true;
+    if (a.ID > b.ID) return false;
     if (a.axisA < b.axisA) return true;
     if (a.axisA > b.axisA) return false;
     return a.axisB < b.axisB;
@@ -123,30 +123,6 @@ struct FeatureQualityDatabase
 
 struct FCSDataset
 {
-    struct Entry
-    {
-        string patientID() const
-        {
-            return util::removeExtensions(fileUnstim) + "_" + util::removeExtensions(fileStim);
-        }
-        vector<float> makeOutcomeVector() const
-        {
-            vector<float> result(constants::survivalIntervals, 0.0f);
-            for (int i = 0; i < result.size(); i++)
-            {
-                const float s = (float)i / (result.size() - 1.0f);
-                const float day = s * (float)constants::survivalCutoff;
-                if (survivalTime <= day)
-                    result[i] = 1.0f;
-            }
-            return result;
-        }
-        string fileStim, fileUnstim;
-        int status;
-        int survivalTime;
-        int label;
-    };
-
     void init(const string &_baseDir);
     void loadLabels(const string &filename);
     void createBinaryFiles();
@@ -163,13 +139,13 @@ struct FCSDataset
     SplitResult evaluateFeatureSplits(int axisA, int axisB, const string &outDir);
 
     string describeAxis(int axisIndex) const;
-    const Entry& sampleRandomEntry(int label) const;
-    Bitmap makeFeatureViz(const FCSDataset::Entry &entry, const FeatureDescription &desc) const;
+    const Patient& sampleRandomPatient(int label) const;
+    Bitmap makeFeatureViz(const Patient &patient, const FeatureDescription &desc) const;
     void saveFeatureDescription(const vector<const FeatureQualityDatabase::Entry*> &features, const string &filename) const;
 
     string baseDir;
 
-    vector<Entry> entries;
+    vector<Patient> patients;
 
     FeatureDatabase featureDatabase;
 

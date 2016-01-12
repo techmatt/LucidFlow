@@ -44,31 +44,32 @@ void FCSDataset::loadLabels(const string &filename)
         auto parts = util::split(line, ",");
         if (parts.size() == 4)
         {
-            Entry e;
-            e.status = convert::toInt(parts[0]);
-            e.survivalTime = convert::toInt(parts[1]);
-            e.fileStim = util::remove(parts[2], ".fcs");
-            e.fileUnstim = util::remove(parts[3], ".fcs");
+            Patient p;
+            p.index = patients.size();
+            p.status = convert::toInt(parts[0]);
+            p.survivalTime = convert::toInt(parts[1]);
+            p.fileStim = util::remove(parts[2], ".fcs");
+            p.fileUnstim = util::remove(parts[3], ".fcs");
 
             bool acceptable = true;
 
-            if (e.status == 0 && e.survivalTime < constants::survivalCutoff)
+            if (p.status == 0 && p.survivalTime < constants::survivalCutoff)
                 acceptable = false;
 
             if (acceptable)
             {
-                e.label = 0;
+                p.label = 0;
 
-                if (e.status == 1 && e.survivalTime < constants::survivalCutoff)
-                    e.label = 1;
+                if (p.status == 1 && p.survivalTime < constants::survivalCutoff)
+                    p.label = 1;
 
-                entries.push_back(e);
+                patients.push_back(p);
             }
             else
                 rejectedCount++;
         }
     }
-    cout << entries.size() << " entries loaded from " << filename << " (" << rejectedCount << " rejected)" << endl;
+    cout << patients.size() << " patients loaded from " << filename << " (" << rejectedCount << " rejected)" << endl;
 }
 
 void FCSDataset::makeResampledFile(const string &resampledFilename, const int maxFileCount, const int samplesPerFile)
@@ -121,10 +122,10 @@ void FCSDataset::makeFeatures()
     util::makeDirectory(baseDir + "features");
     
 #pragma omp parallel for schedule(dynamic,1) num_threads(7)
-    for (int entryIndex = 0; entryIndex < entries.size(); entryIndex++)
+    for (int patientIndex = 0; patientIndex < patients.size(); patientIndex++)
     {
-        const auto &e = entries[entryIndex];
-        const string featureFilename = baseDir + "features/" + e.patientID() + ".feat";
+        const auto &p = patients[patientIndex];
+        const string featureFilename = baseDir + "features/" + p.ID() + ".feat";
 
         if (util::fileExists(featureFilename))
         {
@@ -135,8 +136,8 @@ void FCSDataset::makeFeatures()
         cout << "Creating " << featureFilename << endl;
         
         FCSFile fileUnstim, fileStim;
-        fileUnstim.loadBinary(baseDir + "DAT/" + util::removeExtensions(e.fileUnstim) + ".dat");
-        fileStim.loadBinary  (baseDir + "DAT/" + util::removeExtensions(e.fileStim  ) + ".dat");
+        fileUnstim.loadBinary(baseDir + "DAT/" + util::removeExtensions(p.fileUnstim) + ".dat");
+        fileStim.loadBinary  (baseDir + "DAT/" + util::removeExtensions(p.fileStim  ) + ".dat");
         processor.transform(fileUnstim);
         processor.transform(fileStim);
 
@@ -144,10 +145,10 @@ void FCSDataset::makeFeatures()
     }
 
 #pragma omp parallel for schedule(dynamic,1) num_threads(7)
-    for (int entryIndex = 0; entryIndex < entries.size(); entryIndex++)
+    for (int patientIndex = 0; patientIndex < patients.size(); patientIndex++)
     {
-        const auto &e = entries[entryIndex];
-        const string featureFilename = baseDir + "features/" + e.patientID() + ".feat";
+        const auto &p = patients[patientIndex];
+        const string featureFilename = baseDir + "features/" + p.ID() + ".feat";
 
         vector<FCSFeatures> allFeatures;
         cout << "Loading " << featureFilename << endl;
@@ -162,7 +163,7 @@ void FCSDataset::makeFeatures()
             newF->descriptions = std::move(f.descriptions);
             newF->features = std::move(f.features);
 #pragma omp critical
-            featureDatabase.addEntry(e.patientID(), newF);
+            featureDatabase.addEntry(p.ID(), newF);
         }
     }
 }
@@ -173,8 +174,7 @@ void FCSDataset::evaluateFeatureSplits()
     util::makeDirectory(evalDir);
 
     cout << "Evaluating all feature splits" << endl;
-    const string fcsFile0 = entries[0].fileUnstim;
-
+    
     int dim = resampledFile.dim;
     Grid2d bestSplitValue(dim, dim, 0.0f);
 
@@ -211,12 +211,12 @@ SplitResult FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string
     util::makeDirectory(outDir);
     cout << "Making feature split for " << axisA << "," << axisB << endl;
 
-    const int entryCount = (int)entries.size();
+    const int patientCount = (int)patients.size();
     vector<const FCSFeatures*> featureList;
-    for (int entryIndex = 0; entryIndex < entryCount; entryIndex++)
+    for (int patientIndex = 0; patientIndex < patientCount; patientIndex++)
     {
-        auto &e = entries[entryIndex];
-        featureList.push_back(featureDatabase.getFeatures(e.patientID(), axisA, axisB));
+        auto &p = patients[patientIndex];
+        featureList.push_back(featureDatabase.getFeatures(p.ID(), axisA, axisB));
     }
 
     SplitResult bestOverallSplit;
@@ -237,10 +237,10 @@ SplitResult FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string
         Grid2f informationGain(imageSize, imageSize);
         for (auto &p : informationGain)
         {
-            vector<SplitEntry> sortedEntries(entryCount);
-            for (int entryIndex = 0; entryIndex < entryCount; entryIndex++)
+            vector<SplitEntry> sortedEntries(patientCount);
+            for (int patientIndex = 0; patientIndex < patientCount; patientIndex++)
             {
-                sortedEntries[entryIndex] = SplitEntry(computeFeature(entryIndex, (int)p.x, (int)p.y, featureIndex), entries[entryIndex].label);
+                sortedEntries[patientIndex] = SplitEntry(computeFeature(patientIndex, (int)p.x, (int)p.y, featureIndex), patients[patientIndex].label);
             }
             sort(sortedEntries.begin(), sortedEntries.end());
 
@@ -277,19 +277,19 @@ SplitResult FCSDataset::evaluateFeatureSplits(int axisA, int axisB, const string
     return bestOverallSplit;
 }
 
-const FCSDataset::Entry& FCSDataset::sampleRandomEntry(int label) const
+const Patient& FCSDataset::sampleRandomPatient(int label) const
 {
     while (true)
     {
-        auto &e = util::randomElement(entries);
-        if (e.label == label)
-            return e;
+        auto &p = util::randomElement(patients);
+        if (p.label == label)
+            return p;
     }
 }
 
-Bitmap FCSDataset::makeFeatureViz(const FCSDataset::Entry &entry, const FeatureDescription &desc) const
+Bitmap FCSDataset::makeFeatureViz(const Patient &patient, const FeatureDescription &desc) const
 {
-    const FCSFeatures *features = featureDatabase.getFeatures(entry.patientID(), desc.axisA, desc.axisB);
+    const FCSFeatures *features = featureDatabase.getFeatures(patient.ID(), desc.axisA, desc.axisB);
 
     for (int i = 0; i < features->descriptions.size(); i++)
     {
@@ -333,20 +333,20 @@ void FCSDataset::chooseAndVizFeatures(int totalFeatures, int maxInstancesPerGrap
     saveFeatureDescription(featureQualityDatabase.entries, outDir + "allFeatures.csv");
 
     int featureIndex = 0;
-    for (auto &e : selectedFeatures)
+    for (auto &f : selectedFeatures)
     {
-        const Bitmap bmp = FCSVisualizer::gridToBmp(e->informationGain, 1.0f / 0.0002f);
-        LodePNG::save(bmp, outDir + "f" + to_string(featureIndex) + "_cond" + to_string((int)e->desc.condition) + "_" +
-                                    to_string(e->desc.axisA) + "_" +
-                                    to_string(e->desc.axisB) + "_c" +
-                                    to_string(e->desc.clusterIndex) + ".png");
+        const Bitmap bmp = FCSVisualizer::gridToBmp(f->informationGain, 1.0f / 0.0002f);
+        LodePNG::save(bmp, outDir + "f" + to_string(featureIndex) + "_cond" + to_string((int)f->desc.condition) + "_" +
+                                    to_string(f->desc.axisA) + "_" +
+                                    to_string(f->desc.axisB) + "_c" +
+                                    to_string(f->desc.clusterIndex) + ".png");
 
         for (int sample = 0; sample < samplesPerFeature; sample++)
         {
-            const Entry &e0 = sampleRandomEntry(0);
-            const Entry &e1 = sampleRandomEntry(1);
-            const Bitmap bmp0 = makeFeatureViz(e0, e->desc);
-            const Bitmap bmp1 = makeFeatureViz(e1, e->desc);
+            const Patient &p0 = sampleRandomPatient(0);
+            const Patient &p1 = sampleRandomPatient(1);
+            const Bitmap bmp0 = makeFeatureViz(p0, f->desc);
+            const Bitmap bmp1 = makeFeatureViz(p1, f->desc);
 
             LodePNG::save(bmp0, outDir + "f" + to_string(featureIndex) + "_status0_" + to_string(sample) + ".png");
             LodePNG::save(bmp1, outDir + "f" + to_string(featureIndex) + "_status1_" + to_string(sample) + ".png");

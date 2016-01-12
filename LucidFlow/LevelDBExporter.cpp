@@ -12,10 +12,15 @@
 
 using namespace caffe;
 
-void LevelDBExporter::exportDB(const FCSDataset &dataset, const string &outDir, int epochs)
+void LevelDBExporter::exportDB(const FCSDataset &dataset, const string &outDir, int epochs, int evalSamplesPerPatient, int startPatient, int endPatient)
 {
     const int pixelCount = constants::imageSize * constants::imageSize;
-    const int featureCount = dataset.selectedFeatures.size();
+    const int featureCount = (int)dataset.selectedFeatures.size();
+
+    vector<const Patient*> patients;
+    for (int i = startPatient; i < endPatient; i++)
+        patients.push_back(&dataset.patients[i]);
+    const int patientCount = patients.size();
 
     // leveldb
     leveldb::DB* dbA;
@@ -51,20 +56,24 @@ void LevelDBExporter::exportDB(const FCSDataset &dataset, const string &outDir, 
     for (auto &f : dataset.selectedFeatures)
         selectedFeatures.push_back(f->desc);
 
-    cout << "A total of " << dataset.entries.size() * epochs << " samples will be generated." << endl;
-    const int totalSampleIndex = 0;
+    cout << "A total of " << patientCount * epochs << " samples will be generated." << endl;
+    int totalSampleIndex = 0;
     for (int epoch = 0; epoch < epochs; epoch++)
     {
         cout << "Start epoch " << epoch << endl;
-        for (auto &e : dataset.entries)
+
+        auto shuffledPatients = patients;
+        random_shuffle(shuffledPatients.begin(), shuffledPatients.end());
+
+        for (auto &p : shuffledPatients)
         {
             if (totalSampleIndex % 20 == 0)
-                cout << "Sample " << totalSampleIndex << " / " << dataset.entries.size() * epochs << endl;
+                cout << "Sample " << totalSampleIndex << " / " << patientCount * epochs << endl;
             totalSampleIndex++;
 
             FCSFile fileUnstim, fileStim;
-            fileUnstim.loadBinary(dataset.baseDir + "DAT/" + util::removeExtensions(e.fileUnstim) + ".dat");
-            fileStim.loadBinary(dataset.baseDir + "DAT/" + util::removeExtensions(e.fileStim) + ".dat");
+            fileUnstim.loadBinary(dataset.baseDir + "DAT/" + util::removeExtensions(p->fileUnstim) + ".dat");
+            fileStim.loadBinary(dataset.baseDir + "DAT/" + util::removeExtensions(p->fileStim) + ".dat");
             dataset.processor.transform(fileUnstim);
             dataset.processor.transform(fileStim);
 
@@ -85,14 +94,14 @@ void LevelDBExporter::exportDB(const FCSDataset &dataset, const string &outDir, 
             datumA.set_height(constants::imageSize);
             datumA.set_width(constants::imageSize);
             datumA.set_data(rawData, pixelCount * featureCount);
-            datumA.set_label(0);
+            datumA.set_label(p->index);
 
             Datum datumB;
             datumB.set_channels(constants::survivalIntervals);
             datumB.set_width(1);
             datumB.set_height(1);
-            datumB.set_label(0);
-            vector<float> outcome = e.makeOutcomeVector();
+            datumB.set_label(p->index);
+            vector<float> outcome = p->makeOutcomeVector();
             for (float f : outcome)
                 datumB.add_float_data(f);
 
@@ -130,4 +139,31 @@ void LevelDBExporter::exportDB(const FCSDataset &dataset, const string &outDir, 
     delete batchB;
     delete dbB;
     cout << "Processed " << count << " entries." << endl;
+
+    vector<Patient> allPatients;
+    vector<FCSFeatures> allSamples;
+    allPatients.reserve(patients.size() * evalSamplesPerPatient);
+    allSamples.reserve(patients.size() * evalSamplesPerPatient);
+
+    for (auto &p : patients)
+    {
+        cout << "Sampling patient " << p->index << endl;
+        
+        FCSFile fileUnstim, fileStim;
+        fileUnstim.loadBinary(dataset.baseDir + "DAT/" + util::removeExtensions(p->fileUnstim) + ".dat");
+        fileStim.loadBinary(dataset.baseDir + "DAT/" + util::removeExtensions(p->fileStim) + ".dat");
+        dataset.processor.transform(fileUnstim);
+        dataset.processor.transform(fileStim);
+
+        for (int sample = 0; sample < evalSamplesPerPatient; sample++)
+        {
+            FCSFeatures features;
+            features.create(dataset.processor, fileUnstim, fileStim, constants::imageSize, selectedFeatures);
+
+            allPatients.push_back(*p);
+            allSamples.push_back(features);
+        }
+    }
+
+    util::serializeToFileCompressed(outDir + "Samples.dat", allPatients, allSamples);
 }

@@ -177,6 +177,10 @@ void FCSProcessor::saveFeatures(FCSFile &fileUnstim, FCSFile &fileStim, const st
     BinaryDataStreamZLibFile out(outFilename, true);
     out << allFeatures;
     out.closeStream();
+
+    int a = 10;
+    util::serializeToFile("store.dat", allFeatures, a);
+    util::deserializeFromFile("store.dat", allFeatures, a);
 }
 
 const QuartileRemap& FCSProcessor::getQuartileRemap(const FeatureDescription &desc) const
