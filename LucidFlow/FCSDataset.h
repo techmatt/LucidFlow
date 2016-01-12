@@ -129,6 +129,18 @@ struct FCSDataset
         {
             return util::removeExtensions(fileUnstim) + "_" + util::removeExtensions(fileStim);
         }
+        vector<float> makeOutcomeVector() const
+        {
+            vector<float> result(constants::survivalIntervals, 0.0f);
+            for (int i = 0; i < result.size(); i++)
+            {
+                const float s = (float)i / (result.size() - 1.0f);
+                const float day = s * (float)constants::survivalCutoff;
+                if (survivalTime <= day)
+                    result[i] = 1.0f;
+            }
+            return result;
+        }
         string fileStim, fileUnstim;
         int status;
         int survivalTime;

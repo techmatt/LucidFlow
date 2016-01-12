@@ -161,9 +161,6 @@ void FCSProcessor::saveFeatures(FCSFile &fileUnstim, FCSFile &fileStim, const st
     vector<FCSFeatures> allFeatures;
     allFeatures.reserve(dim * dim * 2);
 
-    transform(fileUnstim);
-    transform(fileStim);
-
     for (int axisA = 0; axisA < dim; axisA++)
         for (int axisB = 0; axisB < dim; axisB++)
         {

@@ -19,6 +19,9 @@ void goB()
     dataset.evaluateFeatureSplits();
 
     dataset.chooseAndVizFeatures(128, 3, 4, dataset.baseDir + "selectedFeatures/");
+
+    LevelDBExporter::exportDB(dataset, dataset.baseDir + "databaseTrain", 2);
+    LevelDBExporter::exportDB(dataset, dataset.baseDir + "databaseTest", 1);
 }
 
 void main()

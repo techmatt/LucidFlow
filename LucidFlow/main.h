@@ -20,3 +20,5 @@ typedef ColorImageR8G8B8A8 Bitmap;
 #include "FCSVisualizer.h"
 #include "FCSFeatures.h"
 #include "FCSDataset.h"
+
+#include "LevelDBExporter.h"

@@ -35,8 +35,7 @@ void FCSDataset::createBinaryFiles()
 void FCSDataset::loadLabels(const string &filename)
 {
     // label is "does the patient die within 1000 days?"
-    const int survivalCutoff = 1000;
-
+    
     int rejectedCount = 0;
     auto lines = util::getFileLines(baseDir + filename, 3);
     for (int i = 1; i < lines.size(); i++)
@@ -53,14 +52,14 @@ void FCSDataset::loadLabels(const string &filename)
 
             bool acceptable = true;
 
-            if (e.status == 0 && e.survivalTime < survivalCutoff)
+            if (e.status == 0 && e.survivalTime < constants::survivalCutoff)
                 acceptable = false;
 
             if (acceptable)
             {
                 e.label = 0;
 
-                if (e.status == 1 && e.survivalTime < survivalCutoff)
+                if (e.status == 1 && e.survivalTime < constants::survivalCutoff)
                     e.label = 1;
 
                 entries.push_back(e);
@@ -138,6 +137,8 @@ void FCSDataset::makeFeatures()
         FCSFile fileUnstim, fileStim;
         fileUnstim.loadBinary(baseDir + "DAT/" + util::removeExtensions(e.fileUnstim) + ".dat");
         fileStim.loadBinary  (baseDir + "DAT/" + util::removeExtensions(e.fileStim  ) + ".dat");
+        processor.transform(fileUnstim);
+        processor.transform(fileStim);
 
         processor.saveFeatures(fileUnstim, fileStim, featureFilename);
     }
