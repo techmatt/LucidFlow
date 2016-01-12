@@ -286,32 +286,25 @@ const FCSDataset::Entry& FCSDataset::sampleRandomEntry(int label) const
     }
 }
 
-Bitmap FCSDataset::makeFeatureViz(const FCSDataset::Entry &entry, FeatureCondition condition, int axisA, int axisB, int clusterIndex) const
+Bitmap FCSDataset::makeFeatureViz(const FCSDataset::Entry &entry, const FeatureDescription &desc) const
 {
-    const FCSFeatures *fUnstim = featureDatabase.getFeatures(entry.fileUnstim, axisA, axisB);
-    const FCSFeatures *fStim = featureDatabase.getFeatures(entry.fileStim, axisA, axisB);
-    
-    if (condition == FeatureCondition::Stim)
-        return fStim->getChannel(clusterIndex);
+    const FCSFeatures *features = featureDatabase.getFeatures(entry.patientID(), desc.axisA, desc.axisB);
 
-    if (condition == FeatureCondition::Unstim)
-        return fUnstim->getChannel(clusterIndex);
-
-    const Bitmap bmpStim = fStim->getChannel(clusterIndex);
-    const Bitmap bmpUnstim = fUnstim->getChannel(clusterIndex);
-    Bitmap result = bmpStim;
-    for (auto &p : result)
+    for (int i = 0; i < features->descriptions.size(); i++)
     {
-        double valueF = (double)bmpStim(p.x, p.y).r - (double)bmpUnstim(p.x, p.y).r;
-        BYTE valueC = util::boundToByte((valueF + 255.0) * 0.5);
-        p.value = vec4uc(valueC, valueC, valueC, 255);
+        if (features->descriptions[i].clusterIndex == desc.clusterIndex &&
+            features->descriptions[i].condition == desc.condition)
+        {
+            return features->getChannel(i);
+        }
     }
-    return result;
+
+    return Bitmap(32, 32, vec4uc(255, 255, 0, 255));
 }
 
 void FCSDataset::saveFeatureDescription(const vector<const FeatureQualityDatabase::Entry*> &features, const string &filename) const
 {
-    /*ofstream descFile(filename);
+    ofstream descFile(filename);
     descFile << "Total features:," << features.size() << endl;
     descFile << "index,condition,AxisA,AxisB,cluster,score" << endl;
 
@@ -319,18 +312,18 @@ void FCSDataset::saveFeatureDescription(const vector<const FeatureQualityDatabas
     for (auto &e : features)
     {
         descFile << featureIndex << ",";
-        descFile << e->condition << ",";
-        descFile << describeAxis(e->axisA) << ",";
-        descFile << describeAxis(e->axisB) << ",";
-        descFile << e->clusterIndex << ",";
+        descFile << (int)e->desc.condition << ",";
+        descFile << describeAxis(e->desc.axisA) << ",";
+        descFile << describeAxis(e->desc.axisB) << ",";
+        descFile << e->desc.clusterIndex << ",";
         descFile << e->score << endl;
         featureIndex++;
-    }*/
+    }
 }
 
 void FCSDataset::chooseAndVizFeatures(int totalFeatures, int maxInstancesPerGraph, int samplesPerFeature, const string &outDir)
 {
-    /*util::makeDirectory(outDir);
+    util::makeDirectory(outDir);
 
     selectedFeatures = featureQualityDatabase.selectBestFeatures(totalFeatures, maxInstancesPerGraph);
     featureQualityDatabase.sortEntries();
@@ -342,21 +335,21 @@ void FCSDataset::chooseAndVizFeatures(int totalFeatures, int maxInstancesPerGrap
     for (auto &e : selectedFeatures)
     {
         const Bitmap bmp = FCSVisualizer::gridToBmp(e->informationGain, 1.0f / 0.0002f);
-        LodePNG::save(bmp, outDir + "f" + to_string(featureIndex) + "_cond" + to_string(e->condition) + "_" +
-                                    to_string(e->axisA) + "_" +
-                                    to_string(e->axisB) + "_c" +
-                                    to_string(e->clusterIndex) + ".png");
+        LodePNG::save(bmp, outDir + "f" + to_string(featureIndex) + "_cond" + to_string((int)e->desc.condition) + "_" +
+                                    to_string(e->desc.axisA) + "_" +
+                                    to_string(e->desc.axisB) + "_c" +
+                                    to_string(e->desc.clusterIndex) + ".png");
 
         for (int sample = 0; sample < samplesPerFeature; sample++)
         {
             const Entry &e0 = sampleRandomEntry(0);
             const Entry &e1 = sampleRandomEntry(1);
-            const Bitmap bmp0 = makeFeatureViz(e0, e->condition, e->axisA, e->axisB, e->clusterIndex);
-            const Bitmap bmp1 = makeFeatureViz(e1, e->condition, e->axisA, e->axisB, e->clusterIndex);
+            const Bitmap bmp0 = makeFeatureViz(e0, e->desc);
+            const Bitmap bmp1 = makeFeatureViz(e1, e->desc);
 
             LodePNG::save(bmp0, outDir + "f" + to_string(featureIndex) + "_status0_" + to_string(sample) + ".png");
             LodePNG::save(bmp1, outDir + "f" + to_string(featureIndex) + "_status1_" + to_string(sample) + ".png");
         }
         featureIndex++;
-    }*/
+    }
 }

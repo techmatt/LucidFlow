@@ -152,7 +152,7 @@ struct FCSDataset
 
     string describeAxis(int axisIndex) const;
     const Entry& sampleRandomEntry(int label) const;
-    Bitmap makeFeatureViz(const FCSDataset::Entry &entry, FeatureCondition condition, int axisA, int axisB, int clusterIndex) const;
+    Bitmap makeFeatureViz(const FCSDataset::Entry &entry, const FeatureDescription &desc) const;
     void saveFeatureDescription(const vector<const FeatureQualityDatabase::Entry*> &features, const string &filename) const;
 
     string baseDir;

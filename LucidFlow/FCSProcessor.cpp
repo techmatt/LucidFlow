@@ -43,7 +43,7 @@ void FCSProcessor::makeQuartiles(FCSFile &file, const string &quartileCacheFile)
     cout << "Loading quartiles from " << quartileCacheFile << endl;
     util::deserializeFromFile(quartileCacheFile, quartileSingleCluster, quartileAllClusters);
 
-    cout << "Single cluster quartiles:" << endl << endl;
+    cout << "Single cluster quartiles:" << endl;
     quartileSingleCluster.print();
 
     cout << "All clusters quartiles:" << endl;

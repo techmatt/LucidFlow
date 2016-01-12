@@ -141,14 +141,14 @@ QuartileRemap FCSFeatures::makeQuartiles(const FCSProcessor &processor, const FC
     QuartileRemap result;
 
     const float maxValue = (float)nonzeroValues.back();
-    if (maxValue <= 255.0f)
+    /*if (maxValue <= 255.0f)
     {
         cout << "Dynamic range is only " << maxValue << ". Defaulting to trivial scaling." << endl;
         result.quartiles.resize(2);
         result.quartiles[0] = 0;
         result.quartiles[1] = maxValue;
         return result;
-    }
+    }*/
 
     result.quartiles.resize(8);
     result.quartiles[0] = 0.0f;
