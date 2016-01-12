@@ -46,31 +46,25 @@ struct FeatureQualityDatabase
 {
     struct Entry
     {
-        FeatureCondition condition;
-        int axisA;
-        int axisB;
-        int clusterIndex;
-        float score;
+        FeatureDescription desc;
+        double score;
         Grid2f informationGain;
     };
 
-    void addEntry(FeatureCondition condition, int axisA, int axisB, int clusterIndex, const Grid2f &informationGain)
+    void addEntry(const FeatureDescription &desc, const Grid2f &informationGain)
     {
         Entry *e = new Entry;
-        e->condition = condition;
-        e->axisA = axisA;
-        e->axisB = axisB;
-        e->clusterIndex = clusterIndex;
-
+        e->desc = desc;
+        
         vector<float> values;
         for (auto &p : informationGain)
             values.push_back(p.value);
         sort(values.rbegin(), values.rend());
 
-        float score = 0.0f;
-        for (int i = 0; i < constants::tokKInformationGainSum; i++)
+        double score = 0.0f;
+        for (int i = 0; i < constants::topKInformationGainSum; i++)
             score += values[i];
-        score /= (float)constants::tokKInformationGainSum;
+        score /= (float)constants::topKInformationGainSum;
         e->score = score;
 
         e->informationGain = informationGain;
@@ -93,7 +87,7 @@ struct FeatureQualityDatabase
             return a->score < b->score;
         };
         auto graphHash = [](const Entry *e) {
-            return (UINT64)e->axisA * 54729 + (UINT64)e->axisB * 5468247 + (UINT64)e->clusterIndex * 564781;
+            return (UINT64)e->desc.axisA * 54729 + (UINT64)e->desc.axisB * 5468247 + (UINT64)e->desc.condition * 564781;
         };
 
         vector<const Entry*> entriesCopy = entries;
@@ -110,11 +104,11 @@ struct FeatureQualityDatabase
             const UINT64 hash = graphHash(e);
             if (graphCounts[hash] >= maxInstancesPerGraph)
             {
-                cout << "Skipping " << e->axisA << "," << e->axisB << ",c" << e->clusterIndex << ", cond" << (int)e->condition << endl;
+                cout << "Skipping " << e->desc.toString() << endl;
             }
             else
             {
-                cout << "Adding " << e->axisA << "," << e->axisB << ",c" << e->clusterIndex << ",cond" << (int)e->condition << endl;
+                cout << "Adding " << e->desc.toString() << endl;
                 result.push_back(e);
                 graphCounts[hash]++;
             }
@@ -154,8 +148,7 @@ struct FCSDataset
     void chooseAndVizFeatures(int totalFeatures, int maxInstancesPerGraph, int samplesPerFeature, const string &outDir);
 
     void evaluateFeatureSplits();
-    void evaluateFeatureSplits(FeatureCondition featureCondition);
-    SplitResult evaluateFeatureSplits(int axisA, int axisB, const string &outDir, FeatureCondition condition);
+    SplitResult evaluateFeatureSplits(int axisA, int axisB, const string &outDir);
 
     string describeAxis(int axisIndex) const;
     const Entry& sampleRandomEntry(int label) const;

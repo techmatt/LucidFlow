@@ -16,9 +16,9 @@ void goB()
 
     dataset.makeFeatures();
 
-    /*dataset.evaluateFeatureSplits();
+    dataset.evaluateFeatureSplits();
 
-    dataset.chooseAndVizFeatures(128, 2, 6, dataset.baseDir + "selectedFeatures/");*/
+    //dataset.chooseAndVizFeatures(128, 2, 6, dataset.baseDir + "selectedFeatures/");*/
 }
 
 void main()
