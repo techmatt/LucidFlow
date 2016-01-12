@@ -18,5 +18,8 @@
 using namespace caffe;  // NOLINT(build/namespaces)
 using namespace google;
 
+#include "../common/constants.h"
+#include "../common/patient.h"
+
 #include "util.h"
 #include "networkProcessor.h"

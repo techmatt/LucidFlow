@@ -86,8 +86,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\constants.h" />
     <ClInclude Include="..\common\patient.h" />
-    <ClInclude Include="constants.h" />
     <ClInclude Include="FCSDataset.h" />
     <ClInclude Include="FCSFeatures.h" />
     <ClInclude Include="FCSFile.h" />

@@ -37,3 +37,17 @@
 /CaffeEval/*.opensdf
 /CaffeEval/*.sdf
 /CaffeEval/*.suo
+/CaffeEval/x64/Release/caffeEval.exe
+/CaffeEval/x64/Release/caffeEval.log
+/CaffeEval/x64/Release/caffeEval.pdb
+/CaffeEval/x64/Release/caffeEval.tlog/CL.read.1.tlog
+/CaffeEval/x64/Release/caffeEval.tlog/CL.write.1.tlog
+/CaffeEval/x64/Release/caffeEval.tlog/caffeEval.lastbuildstate
+/CaffeEval/x64/Release/caffeEval.tlog/cl.command.1.tlog
+/CaffeEval/x64/Release/caffeEval.tlog/link.command.1.tlog
+/CaffeEval/x64/Release/caffeEval.tlog/link.read.1.tlog
+/CaffeEval/x64/Release/caffeEval.tlog/link.write.1.tlog
+/CaffeEval/x64/Release/caffeEval.tlog/unsuccessfulbuild
+/CaffeEval/x64/Release/caffeEval.vcxprojResolveAssemblyReference.cache
+/CaffeEval/x64/Release/mLibSource.obj
+/CaffeEval/x64/Release/vc120.pdb

@@ -36,3 +36,23 @@ inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator>>(Bina
     s >> p.index >> p.fileStim >> p.fileUnstim >> p.status >> p.survivalTime >> p.label;
     return s;
 }
+
+struct PatientFeatureSample
+{
+    Patient patient;
+    Grid3uc features;
+};
+
+template<class BinaryDataBuffer, class BinaryDataCompressor>
+inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator<<(BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& s, const PatientFeatureSample &p) {
+    s << p.patient;
+    s.writePrimitive(p.features);
+    return s;
+}
+
+template<class BinaryDataBuffer, class BinaryDataCompressor>
+inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator>>(BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& s, PatientFeatureSample &p) {
+    s >> p.patient;
+    s.readPrimitive(p.features);
+    return s;
+}

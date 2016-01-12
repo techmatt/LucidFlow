@@ -73,7 +73,7 @@ struct CaffeUtil
         return grid;
     }
 
-    static void loadGridFloatIntoBlob(const Grid2<float> &grid, Blobf &blob, int imageIndex, int channelIndex)
+    static void loadGrid2IntoBlob(const Grid2<float> &grid, Blobf &blob, int imageIndex, int channelIndex)
     {
         float *cpuPtr = (float*)blob->data()->mutable_cpu_data();
         for (auto &p : grid)

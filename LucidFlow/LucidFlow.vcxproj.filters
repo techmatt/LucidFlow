@@ -30,16 +30,16 @@
     <ClInclude Include="FCSUtil.h">
       <Filter>FCS</Filter>
     </ClInclude>
-    <ClInclude Include="FCSFeatures.h">
-      <Filter>FCS</Filter>
-    </ClInclude>
-    <ClInclude Include="constants.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="LevelDBExporter.h">
       <Filter>Caffe</Filter>
     </ClInclude>
     <ClInclude Include="..\common\patient.h">
+      <Filter>FCS</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\constants.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="FCSFeatures.h">
       <Filter>FCS</Filter>
     </ClInclude>
   </ItemGroup>

@@ -140,9 +140,7 @@ void LevelDBExporter::exportDB(const FCSDataset &dataset, const string &outDir, 
     delete dbB;
     cout << "Processed " << count << " entries." << endl;
 
-    vector<Patient> allPatients;
-    vector<FCSFeatures> allSamples;
-    allPatients.reserve(patients.size() * evalSamplesPerPatient);
+    vector<PatientFeatureSample> allSamples;
     allSamples.reserve(patients.size() * evalSamplesPerPatient);
 
     for (auto &p : patients)
@@ -160,10 +158,12 @@ void LevelDBExporter::exportDB(const FCSDataset &dataset, const string &outDir, 
             FCSFeatures features;
             features.create(dataset.processor, fileUnstim, fileStim, constants::imageSize, selectedFeatures);
 
-            allPatients.push_back(*p);
-            allSamples.push_back(features);
+            PatientFeatureSample newPatientSample;
+            newPatientSample.patient = *p;
+            newPatientSample.features = features.features;
+            allSamples.push_back(newPatientSample);
         }
     }
 
-    util::serializeToFileCompressed(outDir + "Samples.dat", allPatients, allSamples);
+    util::serializeToFileCompressed(outDir + "Samples.dat", allSamples);
 }

@@ -12,14 +12,14 @@ using namespace std;
 
 typedef ColorImageR8G8B8A8 Bitmap;
 
-#include "constants.h"
-
+#include "../common/constants.h"
 #include "../common/patient.h"
+
 #include "FCSUtil.h"
 #include "FCSFile.h"
 #include "FCSProcessor.h"
-#include "FCSVisualizer.h"
 #include "FCSFeatures.h"
+#include "FCSVisualizer.h"
 #include "FCSDataset.h"
 
 #include "LevelDBExporter.h"
