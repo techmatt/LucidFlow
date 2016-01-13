@@ -55,6 +55,17 @@ Grid3i FCSFeatures::makeCounts(const FCSProcessor &processor, const FCSFile &fil
     return cellCounts;
 }
 
+vector<BYTE> FCSFeatures::makeLinearFeatures(const vector<vec3i> &coords) const
+{
+    vector<BYTE> result;
+    result.reserve(coords.size());
+    for (auto &c : coords)
+    {
+        result.push_back(features(c.x, c.y, c.z));
+    }
+    return result;
+}
+
 void FCSFeatures::create(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, int axisA, int axisB)
 {
     descriptions.clear();

@@ -49,6 +49,7 @@ struct FeatureQualityDatabase
         FeatureDescription desc;
         double score;
         Grid2f informationGain;
+        vector<vec2i> bestCoords;
     };
 
     void addEntry(const FeatureDescription &desc, const Grid2f &informationGain)
@@ -56,18 +57,22 @@ struct FeatureQualityDatabase
         Entry *e = new Entry;
         e->desc = desc;
         
-        vector<float> values;
+        vector< pair<vec2i, float> > values;
         for (auto &p : informationGain)
-            values.push_back(p.value);
-        sort(values.rbegin(), values.rend());
+            values.push_back( make_pair(vec2i(p.x, p.y), p.value) );
+        sort(values.begin(), values.end(), [](pair<vec2i, float> a, pair<vec2i, float> b) { return a.second > b.second; });
 
         double score = 0.0f;
         for (int i = 0; i < constants::topKInformationGainSum; i++)
-            score += values[i];
+            score += values[i].second;
         score /= (float)constants::topKInformationGainSum;
         e->score = score;
 
         e->informationGain = informationGain;
+
+        for (int i = 0; i < constants::coordsPerFeature; i++)
+            e->bestCoords.push_back(values[i].first);
+
         lock.lock();
         entries.push_back(e);
         lock.unlock();

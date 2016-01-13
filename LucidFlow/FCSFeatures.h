@@ -4,8 +4,8 @@ struct FCSFeatures
     void create(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, int _axisA, int _axisB);
     void create(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, const vector<FeatureDescription> &_descriptions);
     void setChannel(const Bitmap &bmp, int channel);
-
-    static QuartileRemap makeQuartiles(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, const vector<FeatureDescription> &descriptions);
+    
+    vector<BYTE> makeLinearFeatures(const vector<vec3i> &coords) const;
 
     Bitmap getChannel(int channel) const;
     
@@ -13,6 +13,8 @@ struct FCSFeatures
 
     vector<FeatureDescription> descriptions;
     Grid3uc features;
+
+    static QuartileRemap makeQuartiles(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, const vector<FeatureDescription> &descriptions);
 
 private:
     static Grid3i makeCounts(const FCSProcessor &processor, const FCSFile &fileUnstim, const FCSFile &fileStim, int imageSize, const vector<FeatureDescription> &descriptions);

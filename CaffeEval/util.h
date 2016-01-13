@@ -179,6 +179,29 @@ struct CaffeUtil
         net->ForwardFromTo(inputLayerIndex + 1, finalLayerIndex);
     }
 
+    static void saveGrid3ToFile(const Grid3f &grid, const string &filename)
+    {
+        ofstream file(filename);
+        file << "dimensions: " << grid.getDimensions() << endl;
+        for (auto &p : grid)
+        {
+            if (p.x == 0)
+                file << endl;
+            file << p.value << " ";
+        }
+    }
+
+    static void saveNetToDirectory(const Netf &net, const string &dir)
+    {
+        util::makeDirectory(dir);
+        for (auto &blobName : net->blob_names())
+        {
+            auto &blob = net->blob_by_name(blobName);
+            Grid3f g = blobToGrid3(*blob, 0);
+            saveGrid3ToFile(g, dir + blobName + ".txt");
+        }
+    }
+
     static Grid3<float> getBlobAsGrid(const Netf &net, const string &blobName)
     {
         if (!net->has_blob(blobName))

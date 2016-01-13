@@ -25,4 +25,5 @@ void main(int argc, char** argv)
     NetworkProcessor processor;
     processor.init();
     processor.evaluateAllPatients();
+    processor.outputPatients(R"(D:\datasets\LucidFlow\HIV-FlowCAP4\caffe\results.csv)");
 }

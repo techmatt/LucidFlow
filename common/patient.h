@@ -5,9 +5,20 @@ struct Patient
     {
         return util::removeExtensions(fileUnstim) + "_" + util::removeExtensions(fileStim);
     }
+    float getOutcome() const
+    {
+        return math::clamp(survivalTime / 1000.0f, 0.0f, 1.0f);
+    }
     vector<float> makeOutcomeVector() const
     {
-        vector<float> result(constants::survivalIntervals, 0.0f);
+        if (constants::directPrediction)
+        {
+            vector<float> result;
+            result.push_back(getOutcome());
+            return result;
+        }
+
+        vector<float> result(constants::survivalIntervals, -1.0f);
         for (int i = 0; i < result.size(); i++)
         {
             const float s = (float)i / (result.size() - 1.0f);
@@ -40,19 +51,22 @@ inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator>>(Bina
 struct PatientFeatureSample
 {
     Patient patient;
-    Grid3uc features;
+    vector<BYTE> linearFeatures;
+    Grid3uc imageFeatures;
 };
 
 template<class BinaryDataBuffer, class BinaryDataCompressor>
 inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator<<(BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& s, const PatientFeatureSample &p) {
     s << p.patient;
-    s.writePrimitive(p.features);
+    s.writePrimitive(p.linearFeatures);
+    s.writePrimitive(p.imageFeatures);
     return s;
 }
 
 template<class BinaryDataBuffer, class BinaryDataCompressor>
 inline BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& operator>>(BinaryDataStream<BinaryDataBuffer, BinaryDataCompressor>& s, PatientFeatureSample &p) {
     s >> p.patient;
-    s.readPrimitive(p.features);
+    s.readPrimitive(p.linearFeatures);
+    s.readPrimitive(p.imageFeatures);
     return s;
 }
