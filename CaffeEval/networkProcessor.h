@@ -12,6 +12,7 @@ class NetworkProcessor
 {
 public:
     void init();
+    void evaluateAllPatients();
 
 private:
     void addPatients(const string &patientDataFilename, int testState);

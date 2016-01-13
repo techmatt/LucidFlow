@@ -188,4 +188,12 @@ struct CaffeUtil
 
         return blobToGrid3(*blob.get(), 0);
     }
+
+    static vector<float> gridToVector(const Grid3f &grid)
+    {
+        vector<float> result;
+        for (auto &p : grid)
+            result.push_back(p.value);
+        return result;
+    }
 };

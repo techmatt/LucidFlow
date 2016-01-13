@@ -51,3 +51,5 @@
 /CaffeEval/x64/Release/caffeEval.vcxprojResolveAssemblyReference.cache
 /CaffeEval/x64/Release/mLibSource.obj
 /CaffeEval/x64/Release/vc120.pdb
+/CaffeEval/x64/Release/main.obj
+/CaffeEval/x64/Release/networkProcessor.obj

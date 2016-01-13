@@ -10,7 +10,7 @@ void NetworkProcessor::init()
 
     meanValues = CaffeUtil::gridFromBinaryProto(meanFilename);
 
-    Netf net(new Net<float>(netFilename, caffe::TEST));
+    net = Netf(new Net<float>(netFilename, caffe::TEST));
     net->CopyTrainedLayersFrom(modelFilename);
 
     addPatients(baseDir + "databaseTrainSamples.dat", 0);
@@ -45,4 +45,16 @@ void NetworkProcessor::evaluatePatient(PatientTableEntry &patient)
     }
 
     CaffeUtil::runNetForward(net, "conv1", "dataA", inputData);
+    auto grid = CaffeUtil::getBlobAsGrid(net, "ip5");
+    
+    patient.netOutcome = CaffeUtil::gridToVector(grid);
+}
+
+void NetworkProcessor::evaluateAllPatients()
+{
+    for (auto &p : patients)
+    {
+        cout << "Evaluating patient " << p.patient.index << endl;
+        evaluatePatient(p);
+    }
 }
